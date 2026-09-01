@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grade Calculator</title>
+  <link rel="icon" href="icons/logos/page-icon.png" />
+  <!-- Sets data-theme/data-hide-breakdown before the stylesheet below
+       ever gets a chance to paint — deferred scripts don't run until the
+       page has parsed, too late to avoid a flash of the wrong appearance. -->
+  <script>
+    (function () {
+      try {
+        var prefs = { appearance: "system", showBreakdown: true, showUpcomingAssessments: true };
+        var uid = localStorage.getItem("lastKnownUid");
+        var raw = uid ? localStorage.getItem("prefs_" + uid) : null;
+        if (!raw) raw = localStorage.getItem("prefs_anon");
+        if (raw) {
+          var parsed = JSON.parse(raw);
+          if (parsed && parsed.prefs) prefs = Object.assign(prefs, parsed.prefs);
+        }
+        var theme = prefs.appearance;
+        if (theme === "system") {
+          theme = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.dataset.theme = theme === "dark" ? "dark" : "light";
+        if (prefs.showBreakdown === false) document.documentElement.dataset.hideBreakdown = "true";
+        if (prefs.showUpcomingAssessments === false) document.documentElement.dataset.hideUpcomingAssessments = "true";
+      } catch (error) {
+        // ignore — worst case is the same flash this exists to prevent
+      }
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/theme.css" />
+</head>
+<body>
+  <nav class="tab-bar">
+    <img class="tab-bar-logo tab-bar-logo--light" src="icons/logos/light-logo.png" alt="" />
+    <img class="tab-bar-logo tab-bar-logo--dark" src="icons/logos/dark-logo.png" alt="" />
+    <a class="tab" href="my-courses">My Courses</a>
+    <a class="tab" href="domain">Domain</a>
+    <a class="tab" href="gpa">GPA</a>
+    <a class="tab tab--active" href="settings">Settings</a>
+    <a class="tab tab--admin-only" href="assessments">Assessments</a>
+    <a class="tab tab--admin-only" href="suggestions">Suggestions</a>
+    <div class="auth-container"></div>
+  </nav>
+  <div class="page-content">
+    <div class="settings-layout">
+      <div class="settings-card">
+        <h2 class="settings-title">Settings</h2>
+
+        <div class="settings-row">
+          <span class="settings-label">Appearance</span>
+          <div class="segmented-control" data-pref="appearance">
+            <button type="button" class="segmented-option" data-value="light">Light</button>
+            <button type="button" class="segmented-option" data-value="dark">Dark</button>
+            <button type="button" class="segmented-option" data-value="system">System</button>
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <span class="settings-label">Date format</span>
+          <!-- Button labels are filled in by settings.js with today's actual
+               date in each format, rather than a hardcoded example. -->
+          <div class="segmented-control" data-pref="dateFormat">
+            <button type="button" class="segmented-option" data-value="monthDay"></button>
+            <button type="button" class="segmented-option" data-value="numeric"></button>
+            <button type="button" class="segmented-option" data-value="dayMonth"></button>
+            <button type="button" class="segmented-option" data-value="numericEU"></button>
+          </div>
+        </div>
+
+        <div class="settings-divider"></div>
+
+        <div class="settings-row">
+          <span class="settings-label">Display grade breakdown</span>
+          <label class="toggle-switch">
+            <input type="checkbox" class="settings-toggle" data-pref="showBreakdown" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="settings-row">
+          <span class="settings-label">Display upcoming assessments</span>
+          <label class="toggle-switch">
+            <input type="checkbox" class="settings-toggle" data-pref="showUpcomingAssessments" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="settings-row">
+          <span class="settings-label">Replace formatives by default</span>
+          <label class="toggle-switch">
+            <input type="checkbox" class="settings-toggle" data-pref="replaceFormativesByDefault" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="settings-row">
+          <span class="settings-label">Animations</span>
+          <label class="toggle-switch">
+            <input type="checkbox" class="settings-toggle" data-pref="animationsEnabled" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="settings-divider"></div>
+
+        <div class="settings-danger-row">
+          <button type="button" class="settings-danger-btn" id="login-keys-btn">Login Keys</button>
+          <button type="button" class="settings-danger-btn" id="delete-all-data-btn">Delete all data</button>
+          <button type="button" class="settings-danger-btn" id="delete-account-btn">Delete account</button>
+        </div>
+      </div>
+
+      <!-- Toggled by the "Login Keys" button above — starts hidden, only
+           shown on click. -->
+      <div class="settings-card login-keys-card" id="login-keys-card" hidden>
+        <h2 class="settings-title">Login Keys</h2>
+        <p class="settings-encryption-hint">
+          Save this key somewhere safe. It is necessary when logging in with another device.
+        </p>
+        <div class="settings-encryption-code-row">
+          <input type="text" class="settings-encryption-code" id="encryption-code" readonly />
+          <button type="button" class="settings-copy-btn" id="copy-encryption-code-btn">Copy</button>
+        </div>
+        <!-- An easier way to get the code onto another device than
+             typing it: scan this with that device's camera. -->
+        <div class="settings-encryption-qr" id="encryption-code-qr"></div>
+      </div>
+    </div>
+
+    <p class="page-footer">KISJ Grade Calculator 26.8 | By Hajun Kim</p>
+  </div>
+
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script defer src="js/firebase-config.js"></script>
+  <script defer src="js/preferences.js"></script>
+  <script defer src="js/auth.js"></script>
+  <script defer src="js/encryption.js"></script>
+  <!-- Vendored locally rather than loaded from a CDN — a third-party CDN
+       script is exactly what an ad blocker or school network filter
+       blocks, which broke this before. A same-origin file can't be. -->
+  <script defer src="js/vendor/qrcode-generator.js"></script>
+  <script defer src="js/settings.js"></script>
+</body>
+</html>

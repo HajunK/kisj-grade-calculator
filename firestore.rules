@@ -1,0 +1,62 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Kept in sync with ADMIN_EMAILS in public/js/auth.js — that list is
+    // only cosmetic (shows/hides the admin nav tabs); this one is the real
+    // gate.
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email in ['hajunk105@gmail.com', 'hjkim29@kis.ac'];
+    }
+
+    // Each user can only read/write their own classes and assignments.
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // School-wide assessment calendar (formative/summative dates per
+    // course), set by admins and read by every student to build their own
+    // upcoming-assessments view. Anyone can read (not sensitive — just
+    // course names and dates); only an admin email can write.
+    match /assessments/{assessmentId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // A/B day type per date (see admin's day-type picker) — same
+    // public-read/admin-write rule as assessments above.
+    match /dayTypes/{dateId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Assessments students have added themselves via My Courses' "Add
+    // Missing Assessment" (see addedAssessments under users/{userId} above)
+    // but that aren't yet in the admin-scheduled assessments collection —
+    // tagged with the emails of everyone who suggested it, deduped by the
+    // client's own {date,courseName,type} hash key (emails.length stands in
+    // for a count). hasOnly below is what stops a signed-in student from
+    // writing someone ELSE's email into the array, or inventing a brand new
+    // one — a write may only ever add/remove its own. Deleting the whole
+    // doc back out is either the admin accepting/declining it on the
+    // Suggestions page (any count) or a student's own unlogSuggestedAssessment
+    // cleanup, allowed only once no emails would be left — request.resource
+    // is null on a delete, so this is its own rule rather than folded into
+    // create/update above.
+    match /suggested/{suggestionId} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.type in ['Summative', 'Formative']
+        && request.resource.data.date is string
+        && request.resource.data.courseName is string
+        && request.resource.data.emails.hasOnly([request.auth.token.email]);
+      allow update: if request.auth != null
+        && request.resource.data.type in ['Summative', 'Formative']
+        && request.resource.data.date is string
+        && request.resource.data.courseName is string
+        && request.resource.data.emails.hasOnly(resource.data.emails.concat([request.auth.token.email]));
+      allow delete: if request.auth != null
+        && (resource.data.emails.size() <= 1 || isAdmin());
+    }
+  }
+}

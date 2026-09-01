@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /Users/Hajun_/Desktop/grade-calculator/public/css /Users/Hajun_/Desktop/grade-calculator/public/js)",
+      "Bash(pkill -f \"http.server 8765\")",
+      "Bash(pkill -f \"http.server 8765\" 2>/dev/null; python3 -m http.server 8765 --directory /Users/Hajun_/Desktop/grade-calculator >/tmp/gc_server.log 2>&1 & *)",
+      "Bash(python3 -m http.server 8765 --directory /Users/Hajun_/Desktop/grade-calculator)",
+      "Bash(node -c /Users/Hajun_/Desktop/grade-calculator/public/js/app.js)",
+      "Bash(grep -n \"saveDomainSnapshot\\(\\);$\" /Users/Hajun_/Desktop/grade-calculator/public/js/app.js)",
+      "Bash(node -c /Users/Hajun_/Desktop/grade-calculator/public/js/theme.js)",
+      "Bash(grep -n '\"icons/\\\\|icons/link\\\\|icons/unlink\\\\|icons/date\\\\|icons/hide\\\\|icons/show\\\\|`icons/' /Users/Hajun_/Desktop/grade-calculator/public/js/app.js)",
+      "Bash(grep -n \"badgeBtn.addEventListener\\\\|renderGpaDropdownOptions\\(dropdown, showLowerTiers, onSelect, onToggle\\);$\" /Users/Hajun_/Desktop/grade-calculator/public/js/gpa.js)",
+      "Bash(node -c /Users/Hajun_/Desktop/grade-calculator/public/js/preferences.js)",
+      "Bash(node -c /Users/Hajun_/Desktop/grade-calculator/public/js/domain.js)",
+      "Bash(node -c /Users/Hajun_/Desktop/grade-calculator/public/js/settings.js)",
+      "Bash(node -c /Users/Hajun_/Desktop/grade-calculator/public/js/tabs.js)",
+      "Bash(node -c my-courses.js)",
+      "Bash(node -c assessments-shared.js)",
+      "Bash(node -c domain.js)",
+      "Bash(node -c auth.js)",
+      "Bash(node -c tabs.js)",
+      "Bash(node -c assessments-admin.js)",
+      "Bash(pkill -f \"http-server . -p 8090\")",
+      "Bash(node -c /Users/Hajun_/Desktop/grade-calculator/public/js/boot.js)",
+      "Bash(node -c /Users/Hajun_/Desktop/grade-calculator/public/js/shared.js)"
+    ]
+  }
+}

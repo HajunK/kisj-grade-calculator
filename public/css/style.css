@@ -1,0 +1,3377 @@
+/* Turns the corners of the big white panels floating on the page's gray
+   background into a squircle (a superellipse curve) instead of a plain
+   circular arc — Apple's own "continuous corner" look. Only the panel
+   cards get corner-shape: squircle, declared alongside their own
+   border-radius further down. Chromium-only for now; degrades safely to
+   plain rounded corners elsewhere. */
+
+/* A squircle reads as less round than a circular arc at the same radius,
+   so each panel's border-radius is wrapped in
+   calc(<value> * var(--squircle-scale)) — edit this one number to retune
+   everywhere at once. */
+:root {
+  --squircle-scale: 1;
+}
+
+/* Feature-detected, not browser-sniffed — only scales radii up on
+   browsers that actually render corner-shape: squircle. */
+@supports (corner-shape: squircle) {
+  :root {
+    --squircle-scale: 2;
+  }
+}
+
+:root {
+  /* Font weights — edit these to adjust weight across the page */
+  --fw-class-name: 500;        /* "Class Name" label */
+  --fw-grade-value: 600;       /* Big "##" domain grade next to the icon */
+  --fw-grade-breakdown: 400;   /* "FA ##.## | SA ##.## | D ##.##" line (labels + dividers) */
+  --fw-breakdown-value: 400;   /* The FA/SA/D numeric values ("##.##") in the breakdown line */
+  --fw-assessment-label: 500;  /* "Formatives" / "Summatives" / "Final Exam" box titles */
+
+  /* Core palette — change these to build a new color theme */
+  --color-background: #e3e3e3;    /* page background */
+  --color-surface: #ffffff;       /* card / dropdown backgrounds */
+  --color-text-primary: #111111;  /* main text on surfaces */
+  --color-gray-dark: #828282;     /* muted text: icon fill, breakdown text, category percentage, tab text on the page background */
+  --color-gray-light: #ababab;    /* dividers, assessment box borders */
+  --color-gray-lighter: #eeeeee;  /* subtle background highlight, e.g. a selected/hovered My Courses field */
+
+  /* Accent (dropdown hover, focus outlines) */
+  --color-accent: #1051cf;
+  --color-accent-soft: #e6edff;
+  --color-accent-strong: #2f6fed;
+
+  /* Tab bar accent (active tab) */
+  --color-tab-accent: #3a3a3a;
+  --color-tab-accent-soft: #dcdcdc;
+  --color-tab-accent-strong: #2b2b2b;
+
+  /* Misc */
+  --color-divider-on-background: rgba(0, 0, 0, 0.15); /* tab-bar bottom border */
+  --color-scrollbar-thumb: rgba(0, 0, 0, 0.3);
+  --color-shadow: rgba(149, 157, 165, 0.3);         /* cards */
+  --color-shadow-popover: rgba(149, 157, 165, 0.3); /* dropdowns/calendar — floating above other content, so kept even in dark mode; see theme.css */
+  --color-focus-highlight: rgba(0, 41, 107, 0.08);
+  --preview-opacity: 0.35; /* live score-typing letter-grade preview — a bit higher in dark mode; see theme.css */
+  --color-segment-active: #90c2ff; /* Settings segmented controls (Appearance/Date format) — same in both themes, not overridden in theme.css */
+}
+
+html {
+  overscroll-behavior: none;
+  /* Still scrollable by trackpad/wheel/keyboard — just no visible track. */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge/IE */
+}
+
+html::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Edge */
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--color-background);
+  font-family: "Inter", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  overscroll-behavior: none;
+}
+
+.tab-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  /* Tabs sit at the bottom, achieved via alignment since the bar's height
+     is fixed rather than sized from its content. */
+  align-items: flex-end;
+  gap: 4px;
+  height: 71px;
+  padding: 0 48px;
+  background: var(--color-background);
+  /* An inset shadow, not a real border — a real border-bottom would paint
+     outside the clipped scroll area, a layer .tab--active::after can't
+     overlap. This paints the same line inside that area instead. */
+  box-shadow: inset 0 -2px 0 0 var(--color-divider-on-background);
+  /* A narrow window can add up to more tabs than the viewport's width —
+     scrolling sideways instead of shrinking/wrapping needs every child
+     pinned to its own natural width (see flex-shrink: 0 below). Scrollbar
+     hidden but still scrollable by trackpad/drag. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none; /* Firefox */
+}
+
+.tab-bar::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Edge */
+}
+
+/* Only one of the two logos shows at a time, based on the current theme
+   (data-theme on <html>) — CSS-only, so it also follows "system"
+   appearance live if the OS theme changes. */
+.tab-bar-logo {
+  align-self: stretch;
+  flex-shrink: 0;
+  width: auto;
+  margin-right: 20px;
+}
+
+.tab-bar-logo--dark {
+  display: none;
+}
+
+:root[data-theme="dark"] .tab-bar-logo--light {
+  display: none;
+}
+
+:root[data-theme="dark"] .tab-bar-logo--dark {
+  display: block;
+}
+
+.tab {
+  position: relative;
+  flex-shrink: 0;
+  padding: 14px 28px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--color-gray-dark);
+  text-decoration: none;
+  white-space: nowrap;
+  border-radius: 12px 12px 0 0;
+}
+
+.tab:hover {
+  color: var(--color-text-primary);
+}
+
+/* Revealed by auth.js (inline style) once the signed-in email is confirmed
+   to be an admin — hidden by default so it never flashes for anyone else. */
+.tab--admin-only {
+  display: none;
+}
+
+.tab--active,
+.tab--active:hover {
+  background: var(--color-tab-accent-soft);
+  color: var(--color-tab-accent);
+}
+
+.auth-container {
+  display: flex;
+  align-items: center;
+  align-self: center;
+  flex-shrink: 0;
+  gap: 10px;
+  margin-left: auto;
+  padding-right: 8px;
+}
+
+.auth-signin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  /* --color-shadow is transparent in dark mode (see theme.css) — that
+     alone is what drops this to "just the background" there instead of
+     needing a separate dark-mode override. */
+  box-shadow: 0 2px 8px var(--color-shadow);
+}
+
+.auth-signin-btn:hover {
+  background: var(--color-gray-lighter);
+}
+
+.auth-signin-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.auth-avatar {
+  width: 32px;
+  height: 32px;
+  margin-left: 16px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.auth-signout-btn {
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-gray-dark);
+  background: none;
+  border: 1px solid var(--color-gray-light);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.auth-signout-btn:hover {
+  background: var(--color-gray-lighter);
+}
+
+.tab--active::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* .tab-bar's overflow-x: auto forces overflow-y to clip too, so this
+     stays fully inside the box rather than overlapping the border. */
+  bottom: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-tab-accent-strong);
+}
+
+/* Centered in the space below the (fixed 71px) tab bar — see the comment
+   on this element in index.html for when it's actually visible long
+   enough to notice. Reuses .assessment-calendar-spinner as-is (the same
+   loading icon the My Courses calendar uses), just recentered for a
+   page-level rather than a card-level context. */
+.domain-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 71px);
+}
+
+.domain-loading[hidden] {
+  display: none;
+}
+
+.classes-container {
+  display: flex;
+  gap: 32px;
+  padding: 32px 48px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* Hidden at rest — domain.js toggles --scrolling on for a moment
+     whenever this actually scrolls, which is what reveals it below. */
+  scrollbar-width: none;
+  scrollbar-color: var(--color-scrollbar-thumb) transparent;
+}
+
+.classes-container--scrolling {
+  scrollbar-width: thin;
+}
+
+.classes-container::-webkit-scrollbar {
+  height: 2px;
+}
+
+.classes-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Faded out at rest instead of display:none — a transition needs the
+   thumb to stay a real element throughout, not pop in/out at each end. */
+.classes-container::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar-thumb);
+  border-radius: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.classes-container--scrolling::-webkit-scrollbar-thumb {
+  opacity: 1;
+}
+
+.page-content {
+  padding: 64px 48px;
+  padding-top: 32px;
+}
+
+/* My Courses only — box-shadow's ink overflow doesn't extend the page's
+   scrollable height, so a tall card's shadow (0 8px 24px = 32px past the
+   edge) would otherwise sit below the max scroll position, clipped. */
+.page-content--flush-bottom {
+  padding-bottom: 32px;
+}
+
+/* Fixed to the viewport, not the end of the page's content, so it never
+   adds scrollable height of its own. */
+.page-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 12px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-gray-dark);
+  text-align: center;
+  pointer-events: none;
+}
+
+/* The footer above is pointer-events: none (so its full-width fixed strip
+   never blocks clicks on content behind it) — this re-enables it just for
+   the link itself. */
+.page-footer-link {
+  pointer-events: auto;
+  border: none;
+  background: none;
+  padding: 0;
+  margin-left: 2px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--color-gray-dark);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.placeholder-card {
+  max-width: 480px;
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 32px;
+  box-shadow: 0 8px 24px var(--color-shadow);
+}
+
+.placeholder-card h2 {
+  margin: 0 0 8px;
+  font-size: 28px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.placeholder-card p {
+  margin: 0;
+  font-size: 16px;
+  color: var(--color-gray-dark);
+}
+
+/* Reminder toast — shown whenever a signed-out edit tries to save. Floats
+   above the page like the dropdowns/date calendar, so it uses their
+   shadow token rather than a flat card's. */
+.signin-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 32px;
+  z-index: 100;
+  transform: translate(-50%, 16px);
+  opacity: 0;
+  pointer-events: none;
+  max-width: calc(100% - 64px);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  padding: 20px 32px;
+  border-radius: 20px;
+  box-shadow: 0 8px 24px var(--color-shadow-popover);
+  font-size: 17px;
+  text-align: center;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.signin-toast--visible {
+  transform: translate(-50%, 0);
+  opacity: 1;
+}
+
+/* Blocks the page until a working decryption code is entered — no
+   close/skip control, since dismissing without the right key would lose
+   the data it's protecting. */
+.decryption-prompt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.decryption-prompt-overlay--visible {
+  opacity: 1;
+}
+
+.decryption-prompt-overlay--instant {
+  transition: none;
+}
+
+.decryption-prompt {
+  width: 100%;
+  max-width: 440px;
+  max-height: 75vh;
+  overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge/IE */
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--color-surface);
+  border-radius: 20px;
+  padding: 32px;
+  box-shadow: 0 8px 24px var(--color-shadow-popover);
+  opacity: 0;
+  transform: translateY(100vh);
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.decryption-prompt--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.decryption-prompt--instant {
+  transition: none;
+}
+
+.decryption-prompt::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Edge */
+}
+
+.decryption-prompt-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.decryption-prompt-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-gray-dark);
+}
+
+.decryption-prompt-input {
+  font: inherit;
+  font-size: 15px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  color: var(--color-text-primary);
+  background: var(--color-gray-lighter);
+  border: none;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.decryption-prompt-input:focus {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: -2px;
+}
+
+.decryption-prompt-error {
+  margin: 0;
+  font-size: 14px;
+  color: #e5484d;
+}
+
+.decryption-prompt-submit {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-accent-strong);
+  color: #ffffff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.decryption-prompt-submit:hover {
+  opacity: 0.9;
+}
+
+.decryption-prompt-submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.decryption-prompt-scan-btn {
+  padding: 12px 20px;
+  border: 1px solid var(--color-gray-light);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.decryption-prompt-scan-btn:hover {
+  background: var(--color-gray-lighter);
+}
+
+.decryption-prompt-camera {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* display: flex above beats the [hidden] attribute's own default — needed
+   since showCameraScanning/showManualEntry toggle between this and
+   .decryption-prompt-manual below by setting .hidden, not a class. */
+.decryption-prompt-camera[hidden] {
+  display: none;
+}
+
+.decryption-prompt-video {
+  width: 100%;
+  border-radius: 12px;
+  background: #000000;
+  /* The back camera's raw feed isn't mirrored, but object-fit: cover
+     avoids letterboxing regardless of the device's actual aspect ratio. */
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.decryption-prompt-use-code-btn {
+  padding: 12px 20px;
+  border: 1px solid var(--color-gray-light);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.decryption-prompt-use-code-btn:hover {
+  background: var(--color-gray-lighter);
+}
+
+/* Mirrors .decryption-prompt-camera's own flex-column-with-gap — the two
+   views are siblings, each reproducing that spacing itself. */
+.decryption-prompt-manual {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.decryption-prompt-manual[hidden] {
+  display: none;
+}
+
+/* Rises from the bottom in place of window.confirm/prompt for the two
+   destructive Settings actions — interactive (buttons, and for account
+   deletion, a confirmation input) rather than a self-dismissing message. */
+.confirm-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.confirm-dialog-overlay--visible {
+  opacity: 1;
+}
+
+.confirm-dialog-overlay--instant {
+  transition: none;
+}
+
+.confirm-dialog {
+  width: 100%;
+  max-width: 440px;
+  max-height: 75vh;
+  overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge/IE */
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--color-surface);
+  border-radius: 20px;
+  padding: 32px;
+  box-shadow: 0 8px 24px var(--color-shadow-popover);
+  opacity: 0;
+  transform: translateY(100vh);
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.confirm-dialog::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Edge */
+}
+
+.confirm-dialog--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Suppresses the entrance transition above when animations are off —
+   mirrors .toggle-switch--instant's same purpose. */
+.confirm-dialog--instant {
+  transition: none;
+}
+
+.confirm-dialog-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.confirm-dialog-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-gray-dark);
+}
+
+.confirm-dialog-input {
+  font: inherit;
+  font-size: 15px;
+  color: var(--color-text-primary);
+  background: var(--color-gray-lighter);
+  border: none;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.confirm-dialog-input:focus {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: -2px;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.confirm-dialog-cancel-btn {
+  padding: 12px 20px;
+  border: 1px solid var(--color-gray-light);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.confirm-dialog-cancel-btn:hover {
+  background: var(--color-gray-lighter);
+}
+
+.confirm-dialog-confirm-btn {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 999px;
+  background: #e5484d;
+  color: #ffffff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.confirm-dialog-confirm-btn:hover {
+  opacity: 0.9;
+}
+
+.confirm-dialog-confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* The "Add Missing Assessment" modal on My Courses — centered, not a bottom
+   sheet like .confirm-dialog above, since it's a real form rather than a
+   short yes/no prompt. */
+.add-assessment-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.add-assessment-overlay--visible {
+  opacity: 1;
+}
+
+.add-assessment-overlay--instant {
+  transition: none;
+}
+
+.add-assessment-dialog {
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+  max-height: 75vh;
+  overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge/IE */
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  background: var(--color-surface);
+  border-radius: calc(24px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 25px 40px;
+  box-shadow: 0 8px 24px var(--color-shadow-popover);
+  opacity: 0;
+  transform: translateY(100vh);
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.add-assessment-dialog::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Edge */
+}
+
+.add-assessment-dialog--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.add-assessment-dialog--instant {
+  transition: none;
+}
+
+.add-assessment-close-btn {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  color: var(--color-gray-dark);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.add-assessment-close-btn:hover {
+  color: var(--color-text-primary);
+}
+
+.add-assessment-title {
+  margin: 0;
+  text-align: center;
+  font-size: 30px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.add-assessment-body {
+  display: flex;
+  gap: 40px;
+}
+
+.add-assessment-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.add-assessment-section-label {
+  margin-bottom: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-gray-dark);
+}
+
+.add-assessment-type-label {
+  margin-top: 24px;
+}
+
+.add-assessment-course-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.add-assessment-course-btn {
+  padding: 10px 14px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-gray-lighter);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.add-assessment-course-btn:hover:not(.add-assessment-course-btn--selected) {
+  background: var(--color-gray-light);
+}
+
+.add-assessment-course-btn--selected {
+  background: var(--color-segment-active);
+  color: #111111;
+}
+
+.add-assessment-empty-hint {
+  grid-column: 1 / -1;
+  font-size: 14px;
+  color: var(--color-gray-dark);
+}
+
+.add-assessment-submit-btn {
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-accent-strong);
+  color: #ffffff;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.add-assessment-submit-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.add-assessment-submit-btn:disabled {
+  background: var(--color-gray-lighter);
+  color: var(--color-gray-dark);
+  cursor: not-allowed;
+}
+
+.settings-card {
+  /* flex: 0 0 500px, not max-width — a flex item defaults to shrink: 1,
+     which would narrow it whenever the row lacks 500px+360px of room. */
+  flex: 0 0 500px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 32px;
+  box-shadow: 0 8px 24px var(--color-shadow);
+}
+
+.settings-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.settings-label {
+  font-size: 17px;
+  color: var(--color-text-primary);
+}
+
+.settings-divider {
+  height: 1px;
+  background: var(--color-gray-lighter);
+}
+
+/* Appearance / Font / Date format pickers. */
+.segmented-control {
+  position: relative; /* containing block for .segmented-thumb below */
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--color-gray-lighter);
+  border-radius: 999px;
+}
+
+/* display: inline-flex above beats the [hidden] attribute's own default —
+   needed by the admin day panel's picker, hidden until a day is selected. */
+.segmented-control[hidden] {
+  display: none;
+}
+
+/* The active pill background, as a single element that slides between
+   options instead of each snapping on and off. Sits behind the buttons
+   (z-index), so their text/hover states are unaffected. */
+.segmented-thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  border-radius: 999px;
+  background: var(--color-segment-active);
+  transition: left 0.2s ease, width 0.2s ease;
+}
+
+.segmented-option {
+  position: relative;
+  z-index: 1;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.segmented-option:hover:not(.segmented-option--active) {
+  background: var(--color-gray-light);
+}
+
+.segmented-option--active {
+  color: #111111;
+}
+
+.settings-danger-row {
+  display: flex;
+  gap: 12px;
+}
+
+
+.settings-danger-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-gray-lighter);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-danger-btn:hover {
+  background: var(--color-gray-light);
+}
+
+/* Row of up to two boxes: .settings-card and (once "Login Keys" is
+   clicked) .login-keys-card beside it. align-items: flex-start so the
+   second box doesn't stretch to match the first's height. */
+.settings-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+/* Reuses .settings-card's own box styling — this class only overrides the
+   width, since its content (a code + a QR) needs far less room. */
+.login-keys-card {
+  flex: 0 0 360px;
+}
+
+/* .settings-card's own display: flex is an author style, which beats the
+   browser's default [hidden] rule — without this the panel never
+   visually disappears. */
+.login-keys-card[hidden] {
+  display: none;
+}
+
+.settings-encryption-hint {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-gray-dark);
+}
+
+.settings-encryption-code-row {
+  display: flex;
+  gap: 12px;
+}
+
+.settings-encryption-code {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 14px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  color: var(--color-text-primary);
+  background: var(--color-gray-lighter);
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.settings-encryption-code:focus {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: -2px;
+}
+
+.settings-copy-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-gray-lighter);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-copy-btn:hover {
+  background: var(--color-gray-light);
+}
+
+/* Collapses to nothing rather than a blank box until filled in. A QR code
+   needs real light-on-dark contrast, so this stays white regardless of theme. */
+.settings-encryption-qr:empty {
+  display: none;
+}
+
+.settings-encryption-qr {
+  align-self: flex-start;
+  background: #ffffff;
+  padding: 12px;
+  border-radius: 12px;
+}
+
+.settings-encryption-qr svg {
+  display: block;
+  width: 160px;
+  height: 160px;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  width: 44px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--color-gray-light);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.toggle-slider::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 18px;
+  height: 18px;
+  background: var(--color-surface);
+  border-radius: 50%;
+  transition: transform 0.15s ease;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background: var(--color-accent);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+}
+
+.toggle-switch input:focus-visible + .toggle-slider {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Applied briefly by settings.js's initToggle while it sets a switch's
+   initial checked state from the saved preference — without this, that
+   assignment triggers the same transition as a real click, so every switch
+   already on would visibly animate on from off the moment the page loads
+   instead of just showing its actual state. */
+.toggle-switch--instant .toggle-slider,
+.toggle-switch--instant .toggle-slider::before {
+  transition: none;
+}
+
+.schedule-container {
+  display: flex;
+  align-items: stretch;
+  gap: 32px;
+}
+
+.schedule-cards-column {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* Same visual language as .class-card (background, radius, shadow) — just
+   a different width/padding since this card's content is a form, not a
+   fixed-height grade summary. */
+.schedule-card {
+  width: 540px;
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 24px 32px 32px;
+  box-shadow: 0 8px 24px var(--color-shadow);
+}
+
+/* Matches .class-name's size/weight/color; centered instead of left-aligned. */
+.schedule-title {
+  margin: 0 0 16px;
+  font-size: 28px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+.schedule-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0;
+  /* The whole row shows the text-edit cursor, not just the input, so the
+     row's own padding still feels like part of the same text field. */
+  cursor: text;
+}
+
+/* Matches .assessment-label's size/weight; grayed out like a label. */
+.schedule-label {
+  flex: 0 0 120px;
+  font-size: 17px;
+  font-weight: var(--fw-assessment-label);
+  color: var(--color-gray-dark);
+}
+
+/* Un-hides a course previously hidden from Domain. Positioned absolutely,
+   out of the row's own flex flow, so its presence/absence never shifts
+   where the course text starts. left: 108px sits just inside
+   .schedule-label's own flex: 0 0 120px edge. */
+.show-course-btn {
+  position: absolute;
+  left: 108px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+/* display: flex above beats the [hidden] attribute's own default. */
+.show-course-btn[hidden] {
+  display: none;
+}
+
+.show-course-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.schedule-field {
+  position: relative;
+  flex: 1;
+  border-radius: 10px;
+  padding: 6px 10px;
+  transition: background-color 0.15s ease;
+}
+
+/* Hover previews the highlight; :focus-within keeps it lit for whichever
+   field is actually selected, independent of where the mouse currently is —
+   so only the selected box stays lit even while hovering a different one. */
+.schedule-row:hover .schedule-field,
+.schedule-field:focus-within {
+  background: var(--color-gray-lighter);
+}
+
+/* Matches .score-value's size/color — same "editable value" text style. */
+.schedule-input {
+  width: 100%;
+  font: inherit;
+  font-size: 22px;
+  color: var(--color-text-primary);
+  border: none;
+  background: transparent;
+  padding: 0 26px 0 0;
+  margin: 0;
+}
+
+.schedule-input::placeholder {
+  color: var(--color-gray-light);
+}
+
+.schedule-input:focus {
+  outline: none;
+}
+
+/* Clears the field. Only shown while hovering a row that actually has a
+   value typed in it. */
+.schedule-clear-btn {
+  display: none;
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: none;
+  color: var(--color-gray-dark);
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.schedule-row:hover .schedule-field.has-value .schedule-clear-btn {
+  display: flex;
+}
+
+.schedule-dropdown {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--color-surface);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px var(--color-shadow-popover);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.schedule-dropdown:empty {
+  display: none;
+}
+
+.schedule-dropdown-item {
+  position: relative;
+  padding: 8px 12px;
+  font-size: 17px;
+  color: var(--color-text-primary);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.schedule-dropdown-item:hover,
+.schedule-dropdown-item--highlighted {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+/* Marks whichever item Enter would pick: the keyboard-highlighted one, or
+   the first item if none is highlighted yet. */
+.schedule-dropdown-item--highlighted::after,
+.schedule-dropdown:not(:has(.schedule-dropdown-item--highlighted)) .schedule-dropdown-item:first-child::after {
+  content: "Enter";
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-gray-lighter);
+  color: var(--color-gray-dark);
+  font-size: 12px;
+}
+
+/* Arrow-key highlighting turns the item's own background blue
+   (--color-accent-soft, see the rule above) — swap the badge to white so
+   it still reads clearly against that. */
+.schedule-dropdown-item--highlighted::after {
+  background: var(--color-surface);
+}
+
+/* --- Division picker --- */
+/* A row of small circles for courses that split into several sections
+   testing on different days (e.g. English 9/10/11/12, Chinese I-IV) —
+   used on My Courses and the Assessments admin page. position: relative
+   here is only for .division-picker-label below, which needs this as its
+   containing block. */
+.division-picker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.division-picker[hidden] {
+  display: none;
+}
+
+/* Absolutely positioned so it floats above the circles as an overlay
+   rather than pushing them down. */
+.division-picker-label {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--color-gray-dark);
+  white-space: nowrap;
+}
+
+.division-option {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-gray-lighter);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.division-option:hover:not(.division-option--selected) {
+  background: var(--color-gray-light);
+}
+
+.division-option--selected {
+  background: var(--color-accent-strong);
+  color: #ffffff;
+}
+
+/* --- Assessment calendar --- */
+/* Shared by two pages with different interaction models: on My Courses, a
+   read-only grid where each assessment is its own small pill directly on
+   its day; on the Assessments admin page, a month-grid where a day only
+   reveals its assessments once clicked. Both get a fixed pixel WIDTH
+   (this shared rule's 560px, wider for My Courses further down). HEIGHT
+   is left off this shared rule: on My Courses, align-items: stretch on
+   .schedule-container sizes this card to match the A-Day/B-Day column;
+   the Assessments page gets a fixed height of its own instead. */
+
+.assessment-calendar-card {
+  width: 560px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 24px 32px 32px;
+  box-shadow: 0 8px 24px var(--color-shadow);
+}
+
+/* display: flex above beats the [hidden] attribute's own default. Only
+   used on My Courses' own card — the admin page's is never hidden. */
+.assessment-calendar-card[hidden] {
+  display: none;
+}
+
+/* My Courses' own calendar only — the admin page keeps the shared 560px. */
+.my-courses-calendar-card {
+  width: 700px;
+}
+
+.assessment-calendar-title {
+  margin: 0 0 16px;
+  font-size: 28px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+/* My Courses' calendar title + the "Add Missing Assessment" trigger,
+   side by side — the title keeps its own margin above from the shared
+   rule so a card with no button (the admin page) is unaffected. */
+.my-courses-calendar-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.add-assessment-trigger-btn {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--color-gray-light);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-gray-dark);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.add-assessment-trigger-btn:hover {
+  background: var(--color-gray-lighter);
+}
+
+.assessment-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.assessment-calendar-label {
+  font-size: 18px;
+  font-weight: var(--fw-assessment-label);
+  color: var(--color-text-primary);
+}
+
+.assessment-calendar-nav-btn {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text-primary);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.assessment-calendar-nav-btn:hover:not(:disabled) {
+  background: var(--color-gray-lighter);
+}
+
+.assessment-calendar-nav-btn:disabled {
+  color: var(--color-gray-light);
+  cursor: default;
+}
+
+.assessment-calendar-weekday-row,
+.assessment-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.assessment-calendar-weekday-row {
+  margin-bottom: 6px;
+}
+
+/* display: grid above beats the [hidden] attribute's own default —
+   needed on My Courses while this stays hidden until assessments load. */
+.assessment-calendar-weekday-row[hidden] {
+  display: none;
+}
+
+.assessment-calendar-weekday-row span {
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-gray-dark);
+}
+
+/* My Courses' own assessment calendar skips weekends — 5 wider columns
+   instead of the 7 the admin page's month-grid still uses. */
+.assessment-calendar-weekday-row--5col {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.assessment-calendar-day {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border: none;
+  border-radius: 12px;
+  background: none;
+  font: inherit;
+  font-size: 15px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.assessment-calendar-day--outside {
+  visibility: hidden;
+  cursor: default;
+}
+
+/* :not(...--selected) — without it, :hover (class + pseudo-class, more
+   specific than the single --selected class) would override the selected
+   day's own correctly-contrasted colors back to gray-on-white. */
+.assessment-calendar-day:hover:not(.assessment-calendar-day--selected) {
+  background: var(--color-gray-lighter);
+}
+
+/* Same small fixed-size circle as .assessment-week-day-number--today on
+   My Courses — sized around just the number, not the whole cell button. */
+.assessment-calendar-day-number--today {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-accent-strong);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+/* Today's circle, when also selected: swaps to the inverse of the
+   selected day's own colors — otherwise near-invisible blue-on-blue
+   (or white-on-white in dark mode) against the now-solid background. */
+.assessment-calendar-day--selected .assessment-calendar-day-number--today {
+  background: var(--color-surface);
+  color: var(--color-accent);
+}
+
+.assessment-calendar-day--selected {
+  background: var(--color-accent);
+  color: var(--color-surface);
+}
+
+/* Row of dots under the day number — one per assessment scheduled that
+   day (see the dots container built in renderAdminCalendar,
+   assessments-admin.js), not just a single "something's here" marker. */
+.assessment-calendar-day-dots {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 3px;
+}
+
+.assessment-calendar-day-dot {
+  flex-shrink: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-accent-strong);
+}
+
+.assessment-calendar-day--selected .assessment-calendar-day-dot {
+  background: var(--color-surface);
+}
+
+/* Read-only A/B/? label in a day cell's top-right corner — set from the
+   day panel's own picker (see .admin-day-panel-header), not clickable here. */
+.assessment-calendar-day-type {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-gray-dark);
+}
+
+/* color-surface is already whichever color contrasts against the selected
+   day's own solid background in either theme (see the today-circle-when-
+   selected rule) — gray-dark alone would be too low-contrast on it. */
+.assessment-calendar-day--selected .assessment-calendar-day-type {
+  color: color-mix(in srgb, var(--color-surface) 70%, transparent);
+}
+
+/* The type badge next to an entry in the admin's day-detail list. Only
+   the shape here — color comes from an .assessment-pill--* modifier
+   added alongside this class, same colors as My Courses' own pills. */
+.assessment-calendar-entry-type {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* One flat grid — every day cell is a direct child, 5 per row, CSS grid
+   auto-wraps them into rows. gap: 1px + this container's own gray
+   background shows through as a seam between each cell's own opaque
+   background, reading as a thin gridline. */
+.assessment-calendar-weeks {
+  /* Not flex: 1 — this box's height is always exactly its 4 fixed-height
+     rows; it must never grow to fill leftover card space, or its own
+     gray gridline background would fill that space as a blank block.
+     min-height: 0 + overflow-y: auto is only a defensive fallback; a
+     single day with too many assessments scrolls internally instead. */
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1px;
+  background: var(--color-gray-lighter);
+  border: 1px solid var(--color-gray-lighter);
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollbar-thumb) transparent;
+}
+
+.assessment-calendar-weeks::-webkit-scrollbar {
+  width: 4px;
+}
+
+.assessment-calendar-weeks::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.assessment-calendar-weeks::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar-thumb);
+  border-radius: 4px;
+}
+
+/* display: grid above beats the [hidden] attribute's own default —
+   needed while this stays hidden until assessments load. */
+.assessment-calendar-weeks[hidden] {
+  display: none;
+}
+
+/* min-width: 0 overrides a grid item's default min-width: auto — without
+   it, a pill that refuses to shrink could force this cell wider than its
+   1fr track. height (not min-height) is the same idea vertically — a
+   flat, fixed 130px that never grows; see .assessment-week-day-pills
+   below for where overflow actually goes. */
+.assessment-week-day {
+  background: var(--color-surface);
+  min-width: 0;
+  height: 130px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 4px;
+}
+
+.assessment-week-day-number {
+  align-self: flex-start;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.assessment-week-day-number--today {
+  border-radius: 50%;
+  background: var(--color-accent-strong);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+/* This, not the fixed-height cell above, is what scrolls when a day has
+   more assessments than fit — the day number above stays put. */
+.assessment-week-day-pills {
+  min-width: 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollbar-thumb) transparent;
+}
+
+.assessment-week-day-pills::-webkit-scrollbar {
+  width: 3px;
+}
+
+.assessment-week-day-pills::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.assessment-week-day-pills::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar-thumb);
+  border-radius: 3px;
+}
+
+/* Narrow columns mean a long name gets cut off rather than wrapping —
+   see .assessment-pill-name/-testing-label below for where that's
+   clipped, and the hover marquee in buildDayCell for what reveals it.
+   Color-coded by type instead of labeling in text. min-width: 0 is what
+   lets a pill shrink at all — a flex item's default min-width is its
+   own content size, which would otherwise overflow its column. */
+.assessment-pill {
+  display: block;
+  min-width: 0;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: default;
+  /* Defensive fallback — a modifier below always overrides this. */
+  background: var(--color-gray-lighter);
+  color: var(--color-text-primary);
+}
+
+/* Only added when a pill is genuinely newly appearing — starts at
+   opacity: 0; render() sets it back to 1 once the grid is built. Same
+   duration/easing as the calendar card's own reveal fade. */
+.assessment-pill--fade-in {
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+
+/* Right-click delete on a self-added pill (see handlePillContextMenu) —
+   just the transition, not a starting opacity, so the JS-driven fade
+   animates smoothly from whatever the pill's current opacity already is. */
+.assessment-pill--removing {
+  transition: opacity 300ms ease;
+  pointer-events: none;
+}
+
+.assessment-pill--removable {
+  cursor: pointer;
+}
+
+/* Single shared tooltip (see showRemoveHint/hideRemoveHint in
+   my-courses.js) — position: fixed and appended to <body> rather than
+   nested in the pill, so it's never clipped by the day cell's own
+   overflow-y: auto pill list. */
+.assessment-pill-remove-hint {
+  position: fixed;
+  z-index: 300;
+  transform: translate(-50%, -100%);
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: rgba(17, 17, 17, 0.6);
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 400;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.assessment-pill-remove-hint--visible {
+  opacity: 1;
+}
+
+.assessment-pill--formative {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+/* --color-accent-strong (not --color-accent, which turns white in dark
+   mode) stays blue in both themes. Reused for both In-Class and Testing
+   Block — the two aren't given separate colors of their own. */
+.assessment-pill--summative {
+  background: var(--color-accent-strong);
+  color: #ffffff;
+}
+
+/* Added alongside .assessment-pill--summative above for a Testing Block
+   entry, so it reads as a rectangle instead of a fully-rounded pill. */
+.assessment-pill--block {
+  border-radius: 6px;
+}
+
+/* The fixed-width clipping window for the text inside it — display:
+   block also makes the "Testing Block" sub-label start on its own line.
+   The marquee below reveals overflow on hover instead. */
+.assessment-pill-name,
+.assessment-pill-testing-label {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Only present for a Testing Block entry — deliberately muted rather
+   than another loud color/shape, since the name already carries the
+   pill's real color. */
+.assessment-pill-testing-label {
+  opacity: 0.7;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* The actual text, inside the clipping window above — inline-block (not
+   the window's own block) lets this size itself to its own full,
+   possibly-overflowing width, which the marquee below scrolls. */
+.assessment-pill-text {
+  display: inline-block;
+}
+
+/* LED-sign-style auto-scroll — only for text that's actually cut off.
+   Two phases, handed off in buildDayCell's animationend listener: the
+   first pass starts from the text's own resting position (0%, same as not
+   hovering) instead of snapping it away and sliding it back in from the
+   right, so hovering never looks like the pill went blank. Once that pass
+   finishes, it swaps to the ordinary looping marquee — offscreen right
+   (100%) to offscreen left (-100%), repeating — for every pass after. */
+.assessment-pill-text--marquee-in {
+  animation: assessment-pill-marquee-in 3s linear 1;
+}
+
+.assessment-pill-text--marquee-loop {
+  animation: assessment-pill-marquee-loop 3s linear infinite;
+}
+
+@keyframes assessment-pill-marquee-in {
+  from {
+    transform: translateX(0%);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes assessment-pill-marquee-loop {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+/* Sits where the grid goes once loaded, centering a spinner in the same
+   space instead — the card's own height is pinned externally either way
+   (see the .assessment-calendar-card comment on align-items: stretch), so
+   this flex: 1 is just about centering the spinner, not sizing the card. */
+.assessment-calendar-loading {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+}
+
+.assessment-calendar-loading[hidden] {
+  display: none;
+}
+
+.assessment-calendar-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-gray-light);
+  border-top-color: var(--color-gray-dark);
+  border-radius: 50%;
+  /* Not gated by Settings > Animations — same as .paste-spinner on the GPA
+     page, a loading indicator is functional feedback, not decoration. */
+  animation: assessment-calendar-spin 0.7s linear infinite;
+}
+
+@keyframes assessment-calendar-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- Assessments admin page --- */
+/* Reuses the .assessment-calendar-* classes above for the calendar itself
+   (identical visual component) — this section only covers what's unique to
+   the admin page: the two-column layout and the day-detail/add-entry panel. */
+
+.admin-not-authorized {
+  max-width: 480px;
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 32px;
+  box-shadow: 0 8px 24px var(--color-shadow);
+  font-size: 17px;
+  color: var(--color-text-primary);
+}
+
+.admin-calendar-layout {
+  display: flex;
+  align-items: stretch;
+  gap: 32px;
+}
+
+.admin-calendar-layout .assessment-calendar-card {
+  height: 600px;
+}
+
+/* Height is fixed to match .assessment-calendar-card explicitly (not left to
+   align-items: stretch alone) so the entry list below has an actual bound
+   to grow against — without it, a long list has nothing to overflow past
+   and just pushes the whole panel taller instead of scrolling internally. */
+.admin-day-panel {
+  flex: 1;
+  min-width: 320px;
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 24px 32px 32px;
+  box-shadow: 0 8px 24px var(--color-shadow);
+}
+
+.admin-day-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.admin-day-panel-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+/* A day with a lot of entries scrolls internally, keeping the add-form
+   below always visible rather than pushed off the bottom. */
+.admin-day-entry-list {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollbar-thumb) transparent;
+}
+
+.admin-day-entry-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.admin-day-entry-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-day-entry-list::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar-thumb);
+  border-radius: 4px;
+}
+
+.admin-day-entry-empty {
+  font-size: 14px;
+  color: var(--color-gray-dark);
+}
+
+.admin-day-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+.admin-day-entry + .admin-day-entry {
+  border-top: 1px solid var(--color-gray-lighter);
+}
+
+.admin-day-entry-name {
+  flex: 1;
+  font-size: 15px;
+  color: var(--color-text-primary);
+}
+
+.admin-day-entry-delete {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-gray-dark);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.admin-day-entry-delete:hover {
+  background: var(--color-gray-lighter);
+  color: var(--color-text-primary);
+}
+
+.admin-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-gray-lighter);
+}
+
+.admin-add-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* display: flex above beats the [hidden] attribute's own default —
+   needed for #admin-division-field, revealed once a course has divisions. */
+.admin-add-field[hidden] {
+  display: none;
+}
+
+.admin-add-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-gray-dark);
+}
+
+/* Reuses .schedule-field's look, but gives it a resting border of its own
+   since it stands alone in this form, without a .schedule-row ancestor. */
+.admin-course-field {
+  height: 50px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--color-gray-light);
+}
+
+/* Scoped to this one instance — matches the form's other controls' fixed
+   height. display: flex (base class is inline-flex) so this bar stretches
+   full width once the "Other" text input needs room to grow into. */
+#admin-type-toggle {
+  height: 50px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+}
+
+/* Lives inside #admin-type-toggle itself, so it reads as part of the same
+   pill-shaped selection bar — no border/background of its own, the
+   segmented-control's own background shows through around it. */
+.admin-type-other-input {
+  height: 100%;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  padding: 0 12px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 15px;
+}
+
+.admin-type-other-input:focus {
+  outline: none;
+}
+
+/* --color-accent itself turns white in dark mode (theme.css) — used
+   elsewhere for hover text/focus rings against a dark surface, but wrong
+   for a solid filled button. --color-accent-strong stays blue in both
+   themes, which is what a white-text button actually needs. */
+.admin-add-submit-btn {
+  height: 50px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-accent-strong);
+  color: #ffffff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-add-submit-btn:hover {
+  opacity: 0.9;
+}
+
+/* Shown next to the two sample Domain cards until the user has entered a
+   real course in My Courses. */
+.domain-empty-hint {
+  align-self: center;
+  flex: 0 0 300px;
+  margin: 0;
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 64px 32px;
+  text-align: center;
+  font-size: 22px;
+  color: var(--color-text-primary);
+  box-shadow: 0 8px 24px var(--color-shadow);
+}
+
+.domain-empty-hint a {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+.class-card {
+  position: relative;
+  flex: 0 0 380px;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 24px 32px 32px;
+  /* A floor, not a hard height, so a course with little content still gets
+     a reasonable-looking card. .next-assessment-line, when present, draws
+     from .assessment-groups' own locked height budget instead, shrinking
+     Formatives/Summatives to make room rather than growing the card. */
+  min-height: 520px;
+  box-shadow: 0 8px 24px var(--color-shadow);
+}
+
+/* Hides this course from Domain — see hideClassCard in domain.js. Bring
+   it back via the matching show button next to its period on My Courses. */
+.card-hide-btn {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.class-card:hover .card-hide-btn {
+  opacity: 0.65;
+}
+
+/* Higher specificity than the rule above on purpose, so this wins once
+   the mouse is on the button itself. */
+.class-card:hover .card-hide-btn:hover {
+  opacity: 1;
+}
+
+.card-hide-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.class-name {
+  margin: 0 0 4px;
+  font-size: 28px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.grade-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.letter-grade {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.letter-grade--lg {
+  width: 54px;
+  height: 54px;
+}
+
+/* Wraps the big domain badge so a tier change can crossfade instead of
+   snapping — .letter-grade-lg-fade is a second copy of the icon stacked
+   exactly on top (position: absolute) that fades in over the old one, see
+   crossfadeBadgeIcon in domain.js. */
+.letter-grade-lg-wrap {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  flex-shrink: 0;
+}
+
+.letter-grade-lg-wrap .letter-grade--lg {
+  position: absolute;
+  inset: 0;
+}
+
+.letter-grade-lg-fade {
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+}
+
+.letter-grade--empty {
+  background: transparent;
+}
+
+/* .letter-grade is also the big domain-grade badge in .grade-summary —
+   scoped to .score-list so only the small per-row icons get this.
+   Clicking a filled icon selects the whole score value; an empty one is
+   just part of the row's click-to-type area. */
+.score-list .letter-grade {
+  cursor: pointer;
+}
+
+.score-list .letter-grade--empty {
+  cursor: text;
+}
+
+/* Live preview of the letter grade a score would become, shown while
+   still typing it. Desaturated (not just faded) so it reads as a muted
+   placeholder rather than a dim version of the real icon. */
+.letter-grade--preview {
+  opacity: var(--preview-opacity);
+  filter: grayscale(1);
+}
+
+.grade-value {
+  font-size: 44px;
+  font-weight: var(--fw-grade-value);
+  color: var(--color-text-primary);
+}
+
+.grade-breakdown {
+  margin: 0 0 20px;
+  font-size: 15px;
+  font-weight: var(--fw-grade-breakdown);
+  color: var(--color-gray-dark);
+}
+
+/* Tightens the gap to .next-assessment-line when it's actually showing
+   something — its own margin-bottom still keeps the usual distance from
+   the score boxes underneath. .next-assessment-line is a descendant of
+   the next sibling, not a direct next sibling itself. */
+html:not([data-hide-upcoming-assessments])
+  .grade-breakdown:has(+ .assessment-groups .next-assessment-line:not(:empty)) {
+  margin-bottom: 6px;
+}
+
+/* Set on <html> by preferences.js (Settings > Grade breakdown off). */
+html[data-hide-breakdown] .grade-breakdown {
+  display: none;
+}
+
+/* Set on <html> by preferences.js (Settings > Show upcoming assessments
+   off). */
+html[data-hide-upcoming-assessments] .next-assessment-line {
+  display: none;
+}
+
+.grade-breakdown .divider {
+  margin: 0;
+  color: var(--color-gray-light);
+}
+
+.grade-breakdown .breakdown-value {
+  font-weight: var(--fw-breakdown-value);
+  color: var(--color-text-primary);
+}
+
+/* "Next Summative: Aug 18" — the nearest upcoming assessment for this
+   course. Empty (and collapsed) when there's nothing upcoming. Same
+   size/weight/color as .grade-breakdown rather than its own bolder style. */
+.next-assessment-line {
+  /* A flex child of .assessment-groups alongside .assessment-fs-row's own
+     flex: 1 — 0 0 auto keeps this at its single-line height, so it's
+     always Formatives/Summatives that shrinks to make room. */
+  flex: 0 0 auto;
+  margin: 0 0 20px;
+  font-size: 15px;
+  font-weight: var(--fw-grade-breakdown);
+  color: var(--color-gray-dark);
+}
+
+/* The date itself — same treatment as .grade-breakdown .breakdown-value:
+   black against the line's own muted gray label text. */
+.next-assessment-line-date {
+  font-weight: var(--fw-breakdown-value);
+  color: var(--color-text-primary);
+}
+
+.next-assessment-line:empty {
+  display: none;
+}
+
+/* A column, not the F/S row itself. Final Exam, when present, is a child
+   of this too, so it draws from the same flex: 1 share rather than adding
+   an extra one — its own fixed-size row shrinks the F/S row to make room
+   instead of growing the whole card. */
+.assessment-groups {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  /* Inherited — set here (not just .assessment-box) so gaps between rows
+     are covered too. A real button anywhere inside sets its own cursor. */
+  cursor: text;
+}
+
+.assessment-fs-row {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Link/unlink toggle for a row whose Formative qualifies for replacement
+   by its Summative — sits in the gap between the two boxes, vertically
+   aligned (via JS) with that row. The button is a DOM child of
+   .assessment-groups, not .assessment-fs-row, so the hover selector below
+   has to target .assessment-groups to match it. */
+.formative-link-btn {
+  position: absolute;
+  left: 50%;
+  z-index: 5;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-surface);
+  /* Floats over the two assessment boxes, same as the dropdowns/calendar —
+     so it uses their shadow token, kept (lighter) in dark mode rather than
+     dropped like flat cards. */
+  box-shadow: 0 2px 6px var(--color-shadow-popover);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.assessment-groups:hover .formative-link-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.formative-link-btn:hover {
+  background: var(--color-gray-lighter);
+}
+
+.formative-link-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.assessment-box {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1.5px solid var(--color-gray-light);
+  border-radius: 12px;
+  padding: 10px 16px 16px;
+}
+
+/* Final Exam, when present, sits below .assessment-fs-row inside
+   .assessment-groups — sized to its own content, not stretched.
+   .assessment-fs-row's own flex: 1 is what shrinks Formatives/Summatives
+   to whatever's left after this takes only the height it needs. */
+.assessment-box--wide {
+  flex: 0 0 auto;
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.assessment-label {
+  font-size: 20px;
+  font-weight: var(--fw-assessment-label);
+  color: var(--color-text-primary);
+}
+
+.score-list {
+  list-style: none;
+  margin: 6px -12px 0 0;
+  padding: 0 4px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  cursor: text;
+  /* Always "thin" so the reserved scrollbar gutter never changes width on
+     hover — only its color toggles below. */
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+/* Only reveal the scrollbar of the box the cursor is actually over — the
+   other box's scrollTop is synced programmatically, which doesn't trigger
+   :hover. */
+.score-list:hover {
+  scrollbar-color: var(--color-scrollbar-thumb) transparent;
+}
+
+.score-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.score-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.score-list::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.score-list:hover::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar-thumb);
+}
+
+.assessment-box--wide .score-list {
+  margin-top: 4px;
+}
+
+.score-list li {
+  position: relative;
+  /* Declared explicitly — the row-to-row gap wasn't reliably inheriting
+     the value from .assessment-groups several levels up. */
+  cursor: text;
+}
+
+.score-list li label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 17px;
+  transition: background-color 0.15s ease;
+}
+
+/* Hovering the box previews every still-empty row as if selected — but
+   once something inside is actually focused, this stops matching so only
+   that cell's own :focus-within highlight shows. */
+.assessment-box:hover:not(:has(.score-value:focus)) .score-list li:has(.letter-grade--empty) label {
+  background: var(--color-gray-lighter);
+}
+
+.score-list li label:focus-within {
+  background: var(--color-focus-highlight);
+}
+
+.score-value {
+  font: inherit;
+  font-size: 24px;
+  color: var(--color-text-primary);
+  width: 6ch;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+}
+
+.score-value:focus {
+  outline: none;
+}
+
+/* Only populated on a Formatives/Summatives box's first row, while every
+   score in that box is empty. A separate element rather than a real
+   placeholder: a placeholder shares the input's text box, so shifting it
+   left over the icon would also relocate the caret. This overlay is
+   purely visual and never touches the input itself. */
+.score-type-hint {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  /* 70% of .score-value's 24px — a plain "70%" here resolves against this
+     span's own ancestor chain instead, since it's a sibling, not a
+     descendant. */
+  font-size: 16.8px;
+  color: transparent;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: color 0.15s ease;
+}
+
+.assessment-box:hover .score-type-hint {
+  color: var(--color-gray-light);
+}
+
+/* Focusing any row in this list hides the hint (which only lives on the
+   first row), not just that exact row. Higher specificity than the hover
+   rule above, so it wins regardless of hover. */
+.score-list:has(.score-value:focus) .score-type-hint {
+  color: transparent;
+}
+
+/* Shows the original typed score next to a Formative row that's currently
+   displaying a higher, Summative-replaced value. Empty (and hidden) the
+   rest of the time. Positioned absolutely (out of the label's flex flow)
+   so it never takes up horizontal space or shifts the icon/input. */
+.score-original {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  transform-origin: left center;
+  font-size: 15px;
+  color: var(--color-gray-dark);
+  pointer-events: none;
+}
+
+.score-original:empty {
+  display: none;
+}
+
+/* A Formative's date takes priority over its replaced-score label — once
+   a date is set, the original-score label is hidden entirely. */
+.score-list li:has(.score-date-label:not(:empty)) .score-original {
+  display: none;
+}
+
+/* Hovering the link/unlink button previews what the Formative would
+   revert to, even for a row currently showing a date (force-original is
+   toggled by JS, since the button isn't inside this row's markup for
+   :hover to reach). Repeats the :has() clause to match/exceed the
+   date-priority rule's specificity. */
+.score-list li.force-original:has(.score-original:not(:empty)) .score-original {
+  display: inline;
+}
+
+.score-list li.force-original:has(.score-original:not(:empty)) .score-date-label {
+  display: none;
+}
+
+/* Same idea, but for the whole duration of the swap animation, not just
+   live hover — without this a row with a date set would hide its moving
+   number mid-flight the instant the cursor left the button. */
+.score-list li.swap-animating:has(.score-date-label:not(:empty)) .score-original {
+  display: inline;
+}
+
+.score-list li.swap-animating .score-date-label {
+  display: none;
+}
+
+/* Set once a day is picked in the calendar popup. Sits in .score-
+   original's exact spot — the two never show at once — so every row's
+   trailing label stays aligned either way. */
+.score-date-label {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 15px;
+  color: var(--color-gray-dark);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.score-date-label:empty {
+  display: none;
+}
+
+/* Hidden on hover (swapped for the button), and while its calendar is
+   open, even after the mouse moves away. */
+.score-list li:hover .score-date-label,
+.score-list li:has(.score-date-btn--active) .score-date-label {
+  display: none;
+}
+
+/* Hover-only button for a filled score — revealed on hover to set/change
+   the date. Stays visible while its own calendar is open. */
+.score-date-btn {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: none;
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.score-date-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.score-list li:hover:has(.letter-grade:not(.letter-grade--empty)) .score-date-btn,
+.score-date-btn--active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.score-list li:has(.score-original:not(:empty)):has(.score-date-label:empty) .score-date-btn {
+  right: 34px;
+}
+
+/* --- Score date calendar popup --- */
+
+.score-date-calendar {
+  z-index: 50;
+  width: 240px;
+  background: var(--color-surface);
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: 0 8px 24px var(--color-shadow-popover);
+}
+
+.score-date-calendar-clear-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.score-date-calendar-clear-label {
+  font-size: 13px;
+  color: var(--color-gray-dark);
+}
+
+.score-date-calendar-clear-btn {
+  flex-shrink: 0;
+  padding: 5px 12px;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-gray-lighter);
+  color: var(--color-gray-dark);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.score-date-calendar-clear-btn:hover {
+  background: var(--color-gray-light);
+  color: var(--color-text-primary);
+}
+
+.score-date-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.score-date-calendar-label {
+  font-size: 15px;
+  font-weight: var(--fw-assessment-label);
+  color: var(--color-text-primary);
+}
+
+.score-date-nav-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text-primary);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.score-date-nav-btn:hover:not(:disabled) {
+  background: var(--color-gray-lighter);
+}
+
+.score-date-nav-btn:disabled {
+  color: var(--color-gray-light);
+  cursor: default;
+}
+
+.score-date-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.score-date-weekday-row {
+  margin-bottom: 4px;
+}
+
+.score-date-weekday {
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-gray-dark);
+}
+
+.score-date-day {
+  width: 100%;
+  aspect-ratio: 1;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.score-date-day--outside {
+  visibility: hidden;
+  cursor: default;
+}
+
+.score-date-day:hover {
+  background: var(--color-gray-lighter);
+}
+
+.score-date-day--today {
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.score-date-day--selected {
+  background: var(--color-accent);
+  color: var(--color-surface);
+}
+
+.gpa-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.gpa-card {
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 32px;
+  box-shadow: 0 8px 24px var(--color-shadow);
+}
+
+.gpa-classes-card {
+  width: 320px;
+  /* Content width (the card uses the default content-box sizing, so this
+     excludes .gpa-card's padding) — a floor so flex-shrink in .gpa-layout
+     can never compress it past this. */
+  min-width: 300px;
+}
+
+/* Matches .class-name's size/weight/color, like the course title on Domain. */
+.gpa-classes-title {
+  margin: 0 0 4px;
+  font-size: 28px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.gpa-classes-description {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: var(--color-gray-dark);
+  /* Only relevant while it's being collapsed away (see
+     hideGpaClassesDescription in gpa.js) — clips the text as its own
+     height animates down to 0, rather than letting it overflow. */
+  overflow: hidden;
+}
+
+.gpa-class-list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gpa-class-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+}
+
+.gpa-class-name {
+  font-size: 19px;
+  color: var(--color-text-primary);
+}
+
+/* Fixed to its badge size since the scroll-driven grade change briefly
+   holds two badges at once, both position: absolute — without an
+   explicit box the button would collapse to 0x0. */
+.gpa-grade-badge-btn {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 50%;
+  line-height: 0;
+}
+
+/* Clears the row's grade. Only shown while hovering a row that currently
+   has one set (a non-empty data-slug). */
+.gpa-clear-btn {
+  display: none;
+  position: absolute;
+  right: 50px;
+  top: 50%;
+  transform: translateY(-50%);
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: none;
+  color: var(--color-gray-dark);
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.gpa-class-row[data-slug]:not([data-slug=""]):hover .gpa-clear-btn {
+  display: flex;
+}
+
+/* An ungraded class on the GPA list: a hollow ring instead of a filled
+   letter icon, so it reads as "not graded yet" rather than a broken image. */
+.grade-badge--empty {
+  display: inline-block;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid var(--color-gray-light);
+  background: transparent;
+  box-sizing: border-box;
+}
+
+/* Scoped to the GPA class list only, so this doesn't affect .letter-grade
+   badges elsewhere (e.g. the Domain page's course summary icon). */
+.gpa-class-row .letter-grade,
+.gpa-class-row .grade-badge--empty {
+  width: 42px;
+  height: 42px;
+}
+
+.gpa-paste-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 10px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--color-gray-dark);
+  background: transparent;
+  border: 1px solid var(--color-gray-light);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.gpa-paste-btn:hover:not(:disabled) {
+  background: var(--color-background);
+}
+
+.gpa-paste-btn:disabled {
+  cursor: default;
+}
+
+.paste-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 8px;
+  border: 2px solid var(--color-gray-light);
+  border-top-color: var(--color-gray-dark);
+  border-radius: 50%;
+  animation: paste-spinner-spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes paste-spinner-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.gpa-summary-card {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Matches .class-name's size/weight/color, like the course title on Domain. */
+.gpa-summary-title {
+  margin: 0 0 20px;
+  font-size: 28px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.gpa-summary-values {
+  display: flex;
+  gap: 48px;
+}
+
+/* Single combined score (no AP courses) -> center it instead of leaving it
+   pinned to the left like the two-item Unweighted/Weighted layout. */
+.gpa-summary-values:has(.gpa-summary-item--combined:not([hidden])) {
+  justify-content: center;
+}
+
+.gpa-summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.gpa-summary-item[hidden] {
+  display: none;
+}
+
+.gpa-summary-item strong {
+  font-size: 40px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  justify-content: center; /* keeps digits centered during the roll animation, when this becomes an inline-flex container */
+}
+
+/* Direct-child combinator on purpose — a plain descendant selector here
+   would also match every individual digit-slot <span> the roll animation
+   builds inside <strong>, forcing each single digit into a 160px box. */
+.gpa-summary-item > span {
+  min-width: 160px;
+  font-size: 17px;
+  color: var(--color-gray-dark);
+  white-space: nowrap;
+  text-align: center;
+}
+
+/* The sideways (horizontal) grade picker that opens from a badge. */
+.gpa-grade-dropdown {
+  position: absolute;
+  z-index: 10;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-surface);
+  border-radius: 999px;
+  box-shadow: 0 8px 24px var(--color-shadow-popover);
+}
+
+.gpa-grade-dropdown:empty {
+  display: none;
+}
+
+.gpa-grade-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 50%;
+  line-height: 0;
+}
+
+.gpa-grade-option img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.gpa-grade-option:hover img {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+/* Toggles the dropdown between A+..B and B-..F. Flex-centered rather than
+   relying on line-height, which isn't reliable across fonts. */
+.gpa-grade-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-background);
+  color: var(--color-gray-dark);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.gpa-grade-more:hover {
+  color: var(--color-accent);
+}
+
+/* Suggestions admin page — one card, a header row of column labels above a
+   stack of data rows sharing the exact same grid-template-columns so
+   everything lines up. Fixed height (same as My Courses' own "Upcoming
+   Assessments" card) with the title and column labels pinned — only
+   .suggestions-rows itself scrolls once there's more than fits. */
+.suggestions-card {
+  width: 100%;
+  max-width: 800px;
+  height: 654px;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 24px 32px 32px;
+  box-shadow: 0 8px 24px var(--color-shadow);
+}
+
+/* display: flex above beats the [hidden] attribute's own default — this
+   card and .suggestions-list below are both toggled via .hidden in JS. */
+.suggestions-card[hidden] {
+  display: none;
+}
+
+.suggestions-title {
+  flex-shrink: 0;
+  margin: 0 0 20px;
+  font-size: 28px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.suggestions-empty {
+  margin: 0;
+  font-size: 15px;
+  color: var(--color-gray-dark);
+}
+
+.suggestions-list {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.suggestions-list[hidden] {
+  display: none;
+}
+
+.suggestions-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 100px 70px 1.6fr 190px;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 0;
+}
+
+.suggestions-row--header {
+  flex-shrink: 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-gray-lighter);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-gray-dark);
+}
+
+/* Stands out from the rest of the (gray) header row — the actual emails
+   below it are gray, blurred until hovered. */
+.suggestions-row--header .suggestions-cell--emails {
+  color: var(--color-text-primary);
+}
+
+.suggestions-rows {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.suggestions-rows .suggestions-row {
+  border-bottom: 1px solid var(--color-gray-lighter);
+}
+
+.suggestions-rows .suggestions-row:last-child {
+  border-bottom: none;
+}
+
+.suggestions-cell {
+  min-width: 0;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  overflow-wrap: break-word;
+}
+
+.suggestions-cell--count {
+  text-align: center;
+}
+
+.suggestions-cell--emails {
+  color: var(--color-gray-dark);
+}
+
+/* Blurred by default — only readable once you're actually looking at that
+   row, not just glancing down the column. */
+.suggestions-rows .suggestions-cell--emails {
+  filter: blur(4px);
+  transition: filter 0.15s ease;
+}
+
+.suggestions-rows .suggestions-row:hover .suggestions-cell--emails {
+  filter: blur(0);
+}
+
+.suggestions-cell--actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.suggestions-accept-btn,
+.suggestions-decline-btn {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.suggestions-accept-btn {
+  background: var(--color-accent-strong);
+  color: #ffffff;
+}
+
+.suggestions-accept-btn:hover {
+  opacity: 0.9;
+}
+
+.suggestions-decline-btn {
+  background: var(--color-gray-lighter);
+  color: var(--color-text-primary);
+}
+
+.suggestions-decline-btn:hover {
+  background: var(--color-gray-light);
+}
+
+/* "Learn More" grade-protection modal (Domain's footer) — same centered
+   overlay/entrance pattern as .add-assessment-dialog, own class namespace
+   since the content here is a different shape (static info, not a form). */
+.grade-protection-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.grade-protection-overlay--visible {
+  opacity: 1;
+}
+
+.grade-protection-overlay--instant {
+  transition: none;
+}
+
+.grade-protection-dialog {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  max-height: 75vh;
+  overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge/IE */
+  background: var(--color-surface);
+  border-radius: calc(24px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 40px;
+  box-shadow: 0 8px 24px var(--color-shadow-popover);
+  opacity: 0;
+  transform: translateY(100vh);
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.grade-protection-dialog::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Edge */
+}
+
+.grade-protection-dialog--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.grade-protection-dialog--instant {
+  transition: none;
+}
+
+.grade-protection-close-btn {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  color: var(--color-gray-dark);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.grade-protection-close-btn:hover {
+  color: var(--color-text-primary);
+}
+
+.grade-protection-title {
+  margin: 0 0 16px;
+  font-size: 26px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.grade-protection-intro {
+  margin: 0 0 20px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--color-text-primary);
+}
+
+/* --color-accent-strong, not --color-accent — the latter turns white in
+   dark mode (fine for a selected-day background, invisible for link text
+   against this modal's own white-in-dark-mode body text). */
+.grade-protection-intro a {
+  color: var(--color-accent-strong);
+  text-decoration: underline;
+}
+
+.grade-protection-section-title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.grade-protection-section-text {
+  margin: 0 0 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-gray-dark);
+}
+
+.grade-protection-compare {
+  display: flex;
+  gap: 16px;
+  margin: 4px 0 20px;
+}
+
+.grade-protection-compare-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: var(--color-gray-lighter);
+  border-radius: 14px;
+}
+
+.grade-protection-compare-heading {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.grade-protection-grades {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Regular weight, not bold — matches .score-value's own text style next to
+   a grade badge elsewhere in the app. */
+.grade-protection-grade-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--color-text-primary);
+}
+
+.grade-protection-grade-row .letter-grade {
+  width: 26px;
+  height: 26px;
+}
+
+.grade-protection-cipher-box {
+  height: 52px;
+  overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge/IE */
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--color-surface);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--color-gray-dark);
+  word-break: break-all;
+}
+
+.grade-protection-cipher-box::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Edge */
+}
+
+.grade-protection-key-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-gray-dark);
+}
+
+.grade-protection-key-icon {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  margin-top: -2px;
+}

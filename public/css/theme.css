@@ -1,0 +1,49 @@
+/* Dark mode. Set on <html> (data-theme="dark") by theme.js, from the
+   user's cloud-saved preference, before the rest of the page renders.
+   Grouped to mirror style.css's :root — only override what needs to
+   change for this theme; anything not listed here just inherits the
+   light-mode value from style.css. */
+:root[data-theme="dark"] {
+  /* Core palette */
+  --color-background: #121212;
+  --color-surface: #363636;
+  --color-text-primary: #ffffff;
+  --color-gray-dark: #bababa;
+  --color-gray-light: #808080;
+  --color-gray-lighter: #464646;
+
+  /* Accent (dropdown hover, focus outlines) */
+  --color-accent: #ffffff;
+  --color-accent-soft: #5a5a5a;
+  --color-accent-strong: #2b8aff;
+
+  /* Tab bar accent (active tab) */
+  --color-tab-accent: #ffffff;
+  --color-tab-accent-soft: #272727;
+  --color-tab-accent-strong: #ffffff;
+
+  /* Misc */
+  --color-divider-on-background: rgba(255, 255, 255, 0.15);
+  --color-scrollbar-thumb: rgba(255, 255, 255, 0.3);
+  --color-focus-highlight: rgba(174, 225, 255, 0.08);
+
+  /* Shadows — flat cards drop theirs entirely (a dark shadow barely reads
+     against an already-near-black page). Dropdowns/the date calendar keep
+     a shadow (they're floating above other content, not flush against the
+     page), just a lighter, subtler one than the light-mode default. */
+  --color-shadow: transparent;
+  --color-shadow-popover: rgba(255, 255, 255, 0.08);
+
+  /* A grayscale icon at the same opacity reads dimmer against the darker
+     surface here, so it's bumped up slightly to stay as legible as it is
+     in light mode. */
+  --preview-opacity: 0.45;
+}
+
+/* Light mode casts this one 2px toward the bottom (see style.css) — in
+   dark mode that reads as lopsided/longer on the bottom edge against the
+   near-black page, so drop the offset here and let it spread evenly
+   instead. Light mode is untouched. */
+:root[data-theme="dark"] .formative-link-btn {
+  box-shadow: 0 0 6px var(--color-shadow-popover);
+}
