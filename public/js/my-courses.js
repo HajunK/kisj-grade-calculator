@@ -387,6 +387,10 @@ function initAssessmentCalendar() {
   // on the next one so a pill only fades in when it's genuinely new.
   let previousPillIds = new Set();
   let previousMatchNamesKey = "";
+  // False until this calendar has actually built its grid once — nothing
+  // should fade in on the tab's own initial load, only on a genuinely
+  // live change afterward (a new suggestion, a period edit, etc.).
+  let calendarSettled = false;
   // Ids of this render's self-added entries — read by handlePillContextMenu
   // below, kept fresh every render rather than threaded through the whole
   // buildDayCell/buildAssessmentPill call chain.
@@ -507,9 +511,11 @@ function initAssessmentCalendar() {
 
     // Not gated on the `animate` param above — that one only controls the
     // card's own reveal fade. A genuinely new pill should fade in on any
-    // render, including the initial load; null here just means animations
-    // are off entirely.
-    const previousPillIdsForThisRender = window.animationsEnabled() ? previousPillIds : null;
+    // later render; null here means either animations are off entirely,
+    // or this is the calendar's own first-ever build (nothing should fade
+    // in just from opening the tab).
+    const previousPillIdsForThisRender = calendarSettled && window.animationsEnabled() ? previousPillIds : null;
+    calendarSettled = true;
 
     weeksContainer.innerHTML = "";
     const thisWeekStart = firstVisibleWeekStart(new Date());
@@ -573,6 +579,9 @@ const ADD_ASSESSMENT_WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri",
 // division already picked) — the courses this modal can log an assessment
 // against. displayName is the plain typed name (shown on the button);
 // courseName is the fully resolved name (what gets saved/matched).
+// periodIndex is carried along so isDuplicateSelection can tell whether a
+// same-key school-wide entry is actually visible to this student's own
+// section, the same way the calendar itself decides pill visibility.
 function addableCourseOptions() {
   const periods = loadPeriods();
   const divisions = loadPeriodDivisions();
@@ -585,12 +594,12 @@ function addableCourseOptions() {
     const course = findCourseCatalogEntry(trimmed);
     const divisionOptions = course && course.divisions;
     if (!divisionOptions || divisionOptions.length === 0) {
-      options.push({ displayName: trimmed, courseName: trimmed });
+      options.push({ displayName: trimmed, courseName: trimmed, periodIndex: index });
       return;
     }
 
     const picked = divisions[index] || "";
-    if (picked) options.push({ displayName: trimmed, courseName: effectiveCourseName(trimmed, picked) });
+    if (picked) options.push({ displayName: trimmed, courseName: effectiveCourseName(trimmed, picked), periodIndex: index });
   });
 
   return options;
@@ -668,6 +677,16 @@ function unlogSuggestedAssessment(date, courseName, type) {
 function initAddAssessmentModal(refreshAssessmentCalendar) {
   const triggerBtn = document.getElementById("add-assessment-trigger-btn");
   if (!triggerBtn) return;
+
+  // Suggesting/adding an assessment writes to this student's own
+  // addedAssessments and the school-wide suggested collection — both need
+  // a real uid. Signing in/out always reloads the page (see
+  // handleAuthResolved), so currentUid here already reflects this load's
+  // actual state, not a stale guess.
+  if (!currentUid) {
+    triggerBtn.hidden = true;
+    return;
+  }
 
   let overlay = null;
   let selectedCourse = null; // { displayName, courseName } | null
@@ -759,16 +778,36 @@ function initAddAssessmentModal(refreshAssessmentCalendar) {
     return el;
   }
 
-  // True once the current Course/Type/Date already matches either one of
-  // this student's own added entries, or one already scheduled server-side
-  // in the admin-managed assessments collection — same {date, courseName,
-  // type} as suggested's own dedupe key. Checking allAssessments too stops
-  // suggesting something that's already on the official calendar.
+  // The school-wide entry (if any) matching the current Course/Type/Date
+  // selection — regardless of whether it's actually visible on this
+  // student's own calendar right now. A course split across A-day and
+  // B-day sections can have a same-key entry that only shows for the
+  // OTHER section (see isAssessmentVisibleForPeriod), which this student
+  // has no way to see — so its mere existence shouldn't block them from
+  // adding their own, but see submit() for why it still shouldn't suggest.
+  function matchingSchoolWideEntry() {
+    if (!selectedCourse || !selectedDate) return null;
+    return (
+      allAssessments.find(
+        (entry) =>
+          entry.date === selectedDate && entry.courseName === selectedCourse.courseName && entry.type === selectedType
+      ) || null
+    );
+  }
+
+  // True once the current Course/Type/Date already matches one of this
+  // student's own added entries, or a school-wide one that's actually
+  // visible to them (same {date, courseName, type} as suggested's own
+  // dedupe key). A school-wide match that ISN'T visible to this student's
+  // own section doesn't count — see matchingSchoolWideEntry above.
   function isDuplicateSelection() {
     if (!selectedCourse || !selectedDate) return false;
     const matchesSelection = (entry) =>
       entry.date === selectedDate && entry.courseName === selectedCourse.courseName && entry.type === selectedType;
-    return loadAddedAssessments().some(matchesSelection) || allAssessments.some(matchesSelection);
+    if (loadAddedAssessments().some(matchesSelection)) return true;
+
+    const match = matchingSchoolWideEntry();
+    return Boolean(match) && isAssessmentVisibleForPeriod(match, selectedCourse.periodIndex);
   }
 
   function updateSubmitEnabled() {
@@ -923,7 +962,13 @@ function initAddAssessmentModal(refreshAssessmentCalendar) {
     };
 
     saveAddedAssessments([...loadAddedAssessments(), entry]);
-    logSuggestedAssessment(entry.date, entry.courseName, entry.type);
+    // Already scheduled server-side under this same key, just for a
+    // section this student's own A/B-day pattern doesn't show it for (see
+    // isDuplicateSelection) — nothing new for the admin to add, so this
+    // doesn't get suggested to them again.
+    if (!matchingSchoolWideEntry()) {
+      logSuggestedAssessment(entry.date, entry.courseName, entry.type);
+    }
 
     showToast(`Added to ${selectedCourse.displayName}'s calendar.`);
     closeModal();
@@ -931,6 +976,10 @@ function initAddAssessmentModal(refreshAssessmentCalendar) {
   }
 
   triggerBtn.addEventListener("click", openModal);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && overlay) closeModal();
+  });
 }
 
 // My Courses page: load saved period names into the inputs, wire up the

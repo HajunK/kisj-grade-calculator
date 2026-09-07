@@ -74,12 +74,97 @@ function saveEmailToFirestore(user) {
     .catch((error) => console.error("Failed to save email:", error));
 }
 
+// The one open account-menu dropdown, if any — { avatarBtn, menu }.
+// Appended straight to <body> as a position: fixed element rather than
+// nested under the avatar (see openAuthMenu) — .tab-bar itself clips
+// overflow-y for its own sideways-scroll, which would otherwise cut the
+// dropdown off before it ever got to hang below the bar.
+let currentAuthMenu = null;
+
+function positionAuthMenu(avatarBtn, menu) {
+  const rect = avatarBtn.getBoundingClientRect();
+  menu.style.top = `${rect.bottom + 8}px`;
+  menu.style.right = `${window.innerWidth - rect.right}px`;
+}
+
+// label -> what clicking it does. Settings/Login Keys open their own
+// popups (see settings-modal.js) — guarded with typeof defensively, in
+// case a future page loads auth.js without it.
+function buildAuthMenuItem(label, onClick) {
+  const item = document.createElement("button");
+  item.type = "button";
+  item.className = "auth-menu-item";
+  item.textContent = label;
+  item.addEventListener("click", () => {
+    closeAuthMenu();
+    onClick();
+  });
+  return item;
+}
+
+function openAuthMenu(avatarBtn) {
+  closeAuthMenu();
+
+  const menu = document.createElement("div");
+  menu.className = "auth-menu";
+
+  if (typeof openSettingsModal === "function") {
+    menu.appendChild(buildAuthMenuItem("Settings", openSettingsModal));
+  }
+  if (typeof openLoginKeysModal === "function") {
+    menu.appendChild(buildAuthMenuItem("Login Keys", openLoginKeysModal));
+  }
+  if (menu.children.length > 0) {
+    const divider = document.createElement("div");
+    divider.className = "auth-menu-divider";
+    menu.appendChild(divider);
+  }
+  menu.appendChild(buildAuthMenuItem("Sign out", () => auth.signOut()));
+
+  document.body.appendChild(menu);
+  positionAuthMenu(avatarBtn, menu);
+  currentAuthMenu = { avatarBtn, menu };
+
+  if (!window.animationsEnabled()) {
+    menu.classList.add("auth-menu--visible");
+    return;
+  }
+  void menu.offsetWidth; // force reflow so the entrance transition below actually plays
+  menu.classList.add("auth-menu--visible");
+}
+
+function closeAuthMenu() {
+  if (!currentAuthMenu) return;
+  const { menu } = currentAuthMenu;
+  currentAuthMenu = null;
+  if (!window.animationsEnabled()) {
+    menu.remove();
+    return;
+  }
+  // Reverses the entrance transition above.
+  menu.classList.remove("auth-menu--visible");
+  setTimeout(() => menu.remove(), 150);
+}
+
+document.addEventListener("click", (event) => {
+  if (!currentAuthMenu) return;
+  if (currentAuthMenu.avatarBtn.contains(event.target) || currentAuthMenu.menu.contains(event.target)) return;
+  closeAuthMenu();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && currentAuthMenu) closeAuthMenu();
+});
+
 function renderAuthUI(user) {
   updateAdminTabVisibility(user);
 
   const container = document.querySelector(".auth-container");
   if (!container) return;
   container.innerHTML = "";
+  // The avatar button about to be destroyed above can't stay associated
+  // with an open menu.
+  closeAuthMenu();
 
   if (user) {
     saveEmailToFirestore(user);
@@ -89,14 +174,18 @@ function renderAuthUI(user) {
     avatar.src = user.photoURL || TRANSPARENT_GIF;
     avatar.alt = user.displayName || user.email || "";
 
-    const signOutBtn = document.createElement("button");
-    signOutBtn.type = "button";
-    signOutBtn.className = "auth-signout-btn";
-    signOutBtn.textContent = "Sign out";
-    signOutBtn.addEventListener("click", () => auth.signOut());
+    const avatarBtn = document.createElement("button");
+    avatarBtn.type = "button";
+    avatarBtn.className = "auth-avatar-btn";
+    avatarBtn.setAttribute("aria-label", "Account menu");
+    avatarBtn.appendChild(avatar);
+    avatarBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (currentAuthMenu && currentAuthMenu.avatarBtn === avatarBtn) closeAuthMenu();
+      else openAuthMenu(avatarBtn);
+    });
 
-    container.appendChild(avatar);
-    container.appendChild(signOutBtn);
+    container.appendChild(avatarBtn);
   } else {
     const signInBtn = document.createElement("button");
     signInBtn.type = "button";

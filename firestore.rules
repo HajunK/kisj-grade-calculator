@@ -30,6 +30,15 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // The bell schedule: periodTimes/default holds every A-day/B-day's
+    // start/end time per block (see SCHEDULE_BLOCKS in
+    // assessments-shared.js). Read by every student to power the "time
+    // left in class" pill; only an admin email can write.
+    match /periodTimes/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // Assessments students have added themselves via My Courses' "Add
     // Missing Assessment" (see addedAssessments under users/{userId} above)
     // but that aren't yet in the admin-scheduled assessments collection —

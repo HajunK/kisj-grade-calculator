@@ -48,7 +48,6 @@
     <a class="tab" href="my-courses">My Courses</a>
     <a class="tab" href="domain">Domain</a>
     <a class="tab" href="gpa">GPA</a>
-    <a class="tab" href="settings">Settings</a>
     <a class="tab tab--admin-only tab--active" href="assessments">Assessments</a>
     <a class="tab tab--admin-only" href="suggestions">Suggestions</a>
     <div class="auth-container"></div>
@@ -73,14 +72,26 @@
       <div class="admin-day-panel">
         <div class="admin-day-panel-header">
           <h2 class="admin-day-panel-title" id="admin-day-title">Select a day</h2>
-          <!-- Hidden until a day is picked — sets that day's A/B/? type,
-               shown read-only as gray text on each date in the calendar. -->
-          <div class="segmented-control" id="admin-day-type-toggle" hidden>
-            <button type="button" class="segmented-option" data-value="A">A</button>
-            <button type="button" class="segmented-option" data-value="B">B</button>
-            <button type="button" class="segmented-option segmented-option--active" data-value="?">?</button>
+          <div class="admin-day-panel-header-actions">
+            <!-- Opens the Bell Schedule popup (see initScheduleModal in
+                 assessments-admin.js) — not tied to whichever day happens
+                 to be selected, just placed next to the A/B/? toggle. -->
+            <button type="button" class="admin-schedule-open-btn" id="admin-schedule-open-btn" aria-label="Bell Schedule">
+              <svg class="admin-schedule-open-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" />
+                <path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+            <!-- Hidden until a day is picked — sets that day's A/B/? type,
+                 shown read-only as gray text on each date in the calendar. -->
+            <div class="segmented-control" id="admin-day-type-toggle" hidden>
+              <button type="button" class="segmented-option" data-value="A">A</button>
+              <button type="button" class="segmented-option" data-value="B">B</button>
+              <button type="button" class="segmented-option segmented-option--active" data-value="?">?</button>
+            </div>
           </div>
         </div>
+
         <ul class="admin-day-entry-list" id="admin-day-entries"></ul>
 
         <form class="admin-add-form" id="admin-add-form" hidden>
@@ -121,6 +132,12 @@
   <script defer src="js/preferences.js"></script>
   <script defer src="js/auth.js"></script>
   <script defer src="js/course-catalog.js"></script>
+  <script defer src="js/encryption.js"></script>
+  <!-- Vendored locally rather than loaded from a CDN — a third-party CDN
+       script is exactly what an ad blocker or school network filter
+       blocks, which broke this before. A same-origin file can't be. -->
+  <script defer src="js/vendor/qrcode-generator.js"></script>
+  <script defer src="js/settings-modal.js"></script>
   <script defer src="js/assessments-admin.js"></script>
 </body>
 </html>

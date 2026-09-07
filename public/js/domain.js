@@ -1146,9 +1146,21 @@ let openScoreDateCalendar = null; // { button, dateLabel, panel }
 
 function closeScoreDateCalendar() {
   if (!openScoreDateCalendar) return;
-  openScoreDateCalendar.button.classList.remove("score-date-btn--active");
-  openScoreDateCalendar.panel.remove();
+  const { button, panel } = openScoreDateCalendar;
+  button.classList.remove("score-date-btn--active");
   openScoreDateCalendar = null;
+
+  if (!window.animationsEnabled()) {
+    panel.remove();
+    return;
+  }
+  // Reverses the entrance transition (see openScoreDateCalendarFor) —
+  // shrinks back into the same corner it grew from, whether closed by
+  // picking a date, hitting Remove, clicking outside, or switching to a
+  // different row's panel (toggleScoreDateCalendar calls this before
+  // opening the new one, so the two briefly animate past each other).
+  panel.classList.remove("score-date-calendar--visible");
+  setTimeout(() => panel.remove(), 180);
 }
 
 function renderScoreDateCalendar(panel, displayedMonth, bounds, dateLabel) {
@@ -1290,9 +1302,30 @@ function openScoreDateCalendarFor(button, dateLabel) {
   renderScoreDateCalendar(panel, initialMonth, bounds, dateLabel);
 
   const rect = button.getBoundingClientRect();
+  const panelLeft = Math.min(rect.left, window.innerWidth - 260);
   panel.style.position = "fixed";
   panel.style.top = `${rect.bottom + 6}px`;
-  panel.style.left = `${Math.min(rect.left, window.innerWidth - 260)}px`;
+  panel.style.left = `${panelLeft}px`;
+
+  // Scales in from whichever corner sits closest to the button that opened
+  // it. Vertically that's always the top edge — the panel always opens
+  // just below the button — but horizontally it isn't always the panel's
+  // own left edge: panelLeft's own clamp (kicking in near the screen's
+  // right edge) can shove the panel left of where the button actually
+  // sits, putting the button closer to the panel's right side instead.
+  const panelWidth = panel.getBoundingClientRect().width;
+  const buttonCenterX = rect.left + rect.width / 2 - panelLeft;
+  const originXPercent = Math.max(0, Math.min(100, (buttonCenterX / panelWidth) * 100));
+  panel.style.transformOrigin = `${originXPercent}% 0%`;
+
+  const animate = window.animationsEnabled();
+  if (!animate) panel.classList.add("score-date-calendar--instant");
+  void panel.offsetWidth; // force reflow so the entrance transition below actually plays
+  panel.classList.add("score-date-calendar--visible");
+  if (!animate) {
+    void panel.offsetWidth; // commit the instant state before re-enabling the transition
+    panel.classList.remove("score-date-calendar--instant");
+  }
 
   button.classList.add("score-date-btn--active");
   openScoreDateCalendar = { button, dateLabel, panel };
@@ -1307,6 +1340,10 @@ function toggleScoreDateCalendar(button, dateLabel) {
 document.addEventListener("click", (event) => {
   if (event.target.closest(".score-date-btn") || event.target.closest(".score-date-calendar")) return;
   closeScoreDateCalendar();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && openScoreDateCalendar) closeScoreDateCalendar();
 });
 
 function createAssessmentBox(labelText, percentText, rowCount = EMPTY_SCORE_ROWS) {
@@ -1782,6 +1819,10 @@ function initGradeProtectionModal() {
   }
 
   triggerBtn.addEventListener("click", openModal);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && overlay) closeModal();
+  });
 }
 
 initGradeProtectionModal();

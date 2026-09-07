@@ -102,6 +102,7 @@ let systemThemeQuery = null;
 function onSystemThemeChange() {
   document.documentElement.dataset.theme = resolveTheme("system");
   if (typeof window.refreshGradeIcons === "function") window.refreshGradeIcons();
+  if (typeof window.refreshUiIcons === "function") window.refreshUiIcons();
 }
 function watchSystemTheme(appearance) {
   if (systemThemeQuery) {
@@ -162,6 +163,7 @@ window.setPreference = function setPreference(key, value) {
   applyPreferences(currentPrefs);
   watchSystemTheme(currentPrefs.appearance);
   if (typeof window.refreshGradeIcons === "function") window.refreshGradeIcons();
+  if (typeof window.refreshUiIcons === "function") window.refreshUiIcons();
 
   if (!prefsUid || typeof firebase === "undefined" || !firebase.firestore) {
     // Not signed in — keep it locally, scoped to this device.
@@ -192,6 +194,7 @@ if (typeof firebase !== "undefined" && firebase.auth) {
       applyPreferences(currentPrefs);
       watchSystemTheme(currentPrefs.appearance);
       if (typeof window.refreshGradeIcons === "function") window.refreshGradeIcons();
+      if (typeof window.refreshUiIcons === "function") window.refreshUiIcons();
       notifyPreferencesChanged();
       return;
     }
@@ -223,6 +226,7 @@ if (typeof firebase !== "undefined" && firebase.auth) {
         applyPreferences(currentPrefs);
         watchSystemTheme(currentPrefs.appearance);
         if (typeof window.refreshGradeIcons === "function") window.refreshGradeIcons();
+        if (typeof window.refreshUiIcons === "function") window.refreshUiIcons();
         notifyPreferencesChanged();
       })
       .catch((error) => console.error("Failed to load preferences:", error));

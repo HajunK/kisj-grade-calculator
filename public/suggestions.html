@@ -48,7 +48,6 @@
     <a class="tab" href="my-courses">My Courses</a>
     <a class="tab" href="domain">Domain</a>
     <a class="tab" href="gpa">GPA</a>
-    <a class="tab" href="settings">Settings</a>
     <a class="tab tab--admin-only" href="assessments">Assessments</a>
     <a class="tab tab--admin-only tab--active" href="suggestions">Suggestions</a>
     <div class="auth-container"></div>
@@ -88,6 +87,12 @@
   <script defer src="js/firebase-config.js"></script>
   <script defer src="js/preferences.js"></script>
   <script defer src="js/auth.js"></script>
+  <script defer src="js/encryption.js"></script>
+  <!-- Vendored locally rather than loaded from a CDN — a third-party CDN
+       script is exactly what an ad blocker or school network filter
+       blocks, which broke this before. A same-origin file can't be. -->
+  <script defer src="js/vendor/qrcode-generator.js"></script>
+  <script defer src="js/settings-modal.js"></script>
   <script defer src="js/suggestions-admin.js"></script>
 </body>
 </html>

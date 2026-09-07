@@ -115,6 +115,83 @@ if (cachedDayTypes) {
   dayTypesLoaded = true;
 }
 
+// The bell schedule every A-day/B-day follows (see SCHEDULE_BLOCKS below)
+// — null until loaded, or if an admin has never actually set one up yet.
+let defaultPeriodTimes = null; // { times: [{start,end}, ...] } | null
+let periodTimesLoaded = false;
+let periodTimesFetchDone = false;
+const periodTimesLoadListeners = [];
+
+const PERIOD_TIMES_CACHE_KEY = "cachedPeriodTimes";
+
+function readCachedPeriodTimes() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PERIOD_TIMES_CACHE_KEY));
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedPeriodTimes(data) {
+  try {
+    localStorage.setItem(PERIOD_TIMES_CACHE_KEY, JSON.stringify(data));
+  } catch {
+    // Quota exceeded, private browsing, etc. — cache is optional.
+  }
+}
+
+function loadPeriodTimes(callback) {
+  if (periodTimesLoaded) callback(defaultPeriodTimes);
+  if (!periodTimesFetchDone) periodTimesLoadListeners.push(callback);
+}
+
+function fetchPeriodTimes() {
+  if (typeof firebase === "undefined" || !firebase.firestore) return;
+  firebase
+    .firestore()
+    .collection("periodTimes")
+    .doc("default")
+    .get()
+    .then((doc) => {
+      defaultPeriodTimes = doc.exists ? doc.data() : null;
+      periodTimesLoaded = true;
+      periodTimesFetchDone = true;
+      writeCachedPeriodTimes(defaultPeriodTimes);
+      periodTimesLoadListeners.splice(0).forEach((callback) => callback(defaultPeriodTimes));
+    })
+    .catch((error) => console.error("Failed to load period times:", error));
+}
+
+const cachedPeriodTimes = readCachedPeriodTimes();
+if (cachedPeriodTimes) {
+  defaultPeriodTimes = cachedPeriodTimes;
+  periodTimesLoaded = true;
+}
+
+// Fires once assessments, day types, AND period times all have something
+// to show.
+function loadScheduleData(callback) {
+  let assessmentsReady = false;
+  let dayTypesReady = false;
+  let periodTimesReady = false;
+  const tryFire = () => {
+    if (assessmentsReady && dayTypesReady && periodTimesReady) callback();
+  };
+  loadAssessments(() => {
+    assessmentsReady = true;
+    tryFire();
+  });
+  loadDayTypes(() => {
+    dayTypesReady = true;
+    tryFire();
+  });
+  loadPeriodTimes(() => {
+    periodTimesReady = true;
+    tryFire();
+  });
+}
+
 // Fires once both assessments and day types have something to show —
 // callers that filter by period need both loaded first, or an unfiltered
 // list would flash before narrowing.
@@ -164,6 +241,20 @@ function isAssessmentVisibleForPeriod(entry, periodIndex) {
   return true;
 }
 
+// The school day's fixed shape: 4 class periods plus lunch after the
+// second one, in order — every A-day and every B-day is laid out
+// identically, just meeting a different set of courses. Block i's
+// `slot` is what maps it to a clock time: periodIndex `slot` on an
+// A-day, `slot + 4` on a B-day (see defaultPeriodTimes/SCHEDULE_BLOCKS
+// consumers in class-countdown.js).
+const SCHEDULE_BLOCKS = [
+  { type: "class", slot: 0, label: "Period 1/4" },
+  { type: "class", slot: 1, label: "Period 2/5" },
+  { type: "lunch", label: "Lunch" },
+  { type: "class", slot: 2, label: "Period 3/7" },
+  { type: "class", slot: 3, label: "Period 4/8" },
+];
+
 // Every assessment for one course, earliest first.
 function assessmentsForCourse(courseName, periodIndex) {
   return allAssessments
@@ -203,3 +294,4 @@ function nearestUpcomingAnyAssessment(courseName, periodIndex) {
 
 fetchAssessments();
 fetchDayTypes();
+fetchPeriodTimes();

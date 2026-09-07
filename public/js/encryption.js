@@ -200,6 +200,27 @@ function promptForDecryptionCode(uid, cloud) {
           <button type="button" class="decryption-prompt-submit">Continue</button>
           <button type="button" class="decryption-prompt-scan-btn">Scan QR code instead</button>
         </div>
+
+        <p class="decryption-prompt-reset-prompt">
+          Forgot your code?
+          <button type="button" class="decryption-prompt-reset-link">Enter grades manually</button>
+        </p>
+
+        <!-- Swapped in for the camera/manual views above, not stacked on top
+             of them — there's no way to recover the old encrypted data
+             without the code, so this is the only way forward besides
+             finding it. -->
+        <div class="decryption-prompt-reset-confirm" hidden>
+          <p class="decryption-prompt-text">
+            This clears your encrypted grade data, which can't be read without the code — your courses, periods,
+            and other settings are untouched. You'll start entering fresh grades on this device. This can't be
+            undone.
+          </p>
+          <div class="decryption-prompt-reset-actions">
+            <button type="button" class="decryption-prompt-reset-cancel-btn">Cancel</button>
+            <button type="button" class="decryption-prompt-reset-confirm-btn">Clear encrypted grades</button>
+          </div>
+        </div>
       </div>
     `;
     document.body.appendChild(overlay);
@@ -228,6 +249,12 @@ function promptForDecryptionCode(uid, cloud) {
     const errorEl = overlay.querySelector(".decryption-prompt-error");
     const submitBtn = overlay.querySelector(".decryption-prompt-submit");
     const scanBtn = overlay.querySelector(".decryption-prompt-scan-btn");
+
+    const resetPrompt = overlay.querySelector(".decryption-prompt-reset-prompt");
+    const resetLink = overlay.querySelector(".decryption-prompt-reset-link");
+    const resetConfirmBox = overlay.querySelector(".decryption-prompt-reset-confirm");
+    const resetCancelBtn = overlay.querySelector(".decryption-prompt-reset-cancel-btn");
+    const resetConfirmBtn = overlay.querySelector(".decryption-prompt-reset-confirm-btn");
 
     const encryptedFieldsPresent = ENCRYPTED_FIELDS.filter((field) => typeof cloud[field] === "string");
 
@@ -330,6 +357,63 @@ function promptForDecryptionCode(uid, cloud) {
 
     useCodeBtn.addEventListener("click", showManualEntry);
     scanBtn.addEventListener("click", showCameraScanning);
+
+    // There's no way to recover the old encrypted data without the code
+    // itself — this is the only way forward besides finding it. Swaps in
+    // for whichever of camera/manual was showing (remembered so Cancel can
+    // put it back), rather than stacking on top of it.
+    let resetReturnToCamera = false;
+
+    function showResetConfirm() {
+      resetReturnToCamera = !cameraBox.hidden;
+      stopScanning();
+      cameraBox.hidden = true;
+      manualBox.hidden = true;
+      resetPrompt.hidden = true;
+      resetConfirmBox.hidden = false;
+    }
+
+    function hideResetConfirm() {
+      resetConfirmBox.hidden = true;
+      resetPrompt.hidden = false;
+      if (resetReturnToCamera) showCameraScanning();
+      else showManualEntry();
+    }
+
+    resetLink.addEventListener("click", showResetConfirm);
+    resetCancelBtn.addEventListener("click", hideResetConfirm);
+    resetConfirmBtn.addEventListener("click", () => {
+      resetConfirmBtn.disabled = true;
+      resetCancelBtn.disabled = true;
+
+      // Only ENCRYPTED_FIELDS are cleared (via FieldValue.delete(), an
+      // .update() rather than deleteAllData's wholesale .set()) — periods,
+      // divisions, addedAssessments, preferences, and email are all
+      // readable as-is without the code, so they're left untouched. Nothing
+      // left to decrypt afterward, so resolveDeviceKeyForBoot won't prompt
+      // again; this device just gets a fresh key on reload.
+      const clearedFields = { lastModified: Date.now() };
+      ENCRYPTED_FIELDS.forEach((field) => {
+        clearedFields[field] = firebase.firestore.FieldValue.delete();
+      });
+
+      firebase
+        .firestore()
+        .collection("users")
+        .doc(uid)
+        .update(clearedFields)
+        .then(() => {
+          localStorage.removeItem(APP_DATA_CACHE_PREFIX + uid);
+          localStorage.removeItem(prefsCacheKeyFor(uid));
+          location.reload();
+        })
+        .catch((error) => {
+          console.error("Failed to clear encrypted data:", error);
+          alert("Something went wrong. Please try again.");
+          resetConfirmBtn.disabled = false;
+          resetCancelBtn.disabled = false;
+        });
+    });
 
     // Scanning is the default view this prompt opens on.
     showCameraScanning();

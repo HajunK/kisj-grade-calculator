@@ -44,6 +44,20 @@ window.refreshGradeIcons = function refreshGradeIcons() {
   });
 };
 
+// Same idea for the other theme-aware icon folder (uiIconPath — link,
+// date, hide/show, key, etc.), a live theme switch (Settings > Appearance,
+// or the OS-level change while on "System") would otherwise leave every
+// already-rendered one of these stuck showing its old theme's asset until
+// the next full page load. These aren't tagged with a name like
+// .letter-grade's data-slug, so this swaps the light/dark folder segment
+// already present in each one's own current src instead.
+window.refreshUiIcons = function refreshUiIcons() {
+  const folder = themeFolder();
+  document.querySelectorAll('img[src*="icons/light/"], img[src*="icons/dark/"]').forEach((img) => {
+    img.src = img.src.replace(/icons\/(light|dark)\//, `icons/${folder}/`);
+  });
+};
+
 // Tracks the in-progress roll animation per element, so rapid updates (e.g.
 // typing quickly) restart cleanly instead of stacking cleanup timers.
 const numberAnimations = new WeakMap();
@@ -476,6 +490,7 @@ function initPage() {
   if (typeof initMyCoursesPage === "function") initMyCoursesPage();
   if (typeof initDomainPage === "function") initDomainPage();
   if (typeof initGpaPage === "function") initGpaPage();
+  if (typeof initClassCountdown === "function") initClassCountdown();
 }
 
 // initPage() is safe to run once, not a second time on top of itself

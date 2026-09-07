@@ -27,6 +27,29 @@ function adminFromISODate(iso) {
 
 let adminAllAssessments = [];
 let adminDayTypes = {}; // ISO date -> "A" | "B", absent = unset ("?")
+// The regular schedule (periodTimes/default) — [{start,end}] x5, or null
+// until an admin has actually set one up (or fetchAdminPeriodTimes just
+// hasn't resolved yet — see adminPeriodTimesFetched, which tells the two
+// apart).
+let adminDefaultScheduleTimes = null;
+let adminPeriodTimesFetched = false;
+// Fixed 5-block shape every day follows (4 periods + lunch) — kept in sync
+// with SCHEDULE_BLOCKS in assessments-shared.js, which this page doesn't
+// load.
+const ADMIN_SCHEDULE_BLOCK_LABELS = ["Period 1/4", "Period 2/5", "Lunch", "Period 3/7", "Period 4/8"];
+
+// KISJ's actual regular bell schedule, index-aligned with
+// ADMIN_SCHEDULE_BLOCK_LABELS — seeded into periodTimes/default the first
+// time an admin actually marks a day A or B (see setDayType), so there's
+// something sensible in there without a separate trip through the Bell
+// Schedule popup first.
+const DEFAULT_SCHEDULE_TIMES = [
+  { start: "08:50", end: "10:13" },
+  { start: "10:18", end: "11:41" },
+  { start: "11:41", end: "12:30" },
+  { start: "12:30", end: "13:53" },
+  { start: "13:58", end: "15:21" },
+];
 let adminDisplayedMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let adminSelectedDate = null; // ISO string, or null before any day is clicked
 let adminSelectedType = "In-Class"; // "In-Class" | "Testing Block" | "Formative" | "Other"
@@ -82,6 +105,40 @@ function fetchAdminDayTypes(callback) {
     .catch((error) => console.error("Failed to load day types:", error));
 }
 
+function fetchAdminPeriodTimes(callback) {
+  firebase
+    .firestore()
+    .collection("periodTimes")
+    .doc("default")
+    .get()
+    .then((doc) => {
+      const data = doc.exists ? doc.data() : null;
+      adminDefaultScheduleTimes = data && Array.isArray(data.times) ? data.times : null;
+      adminPeriodTimesFetched = true;
+      if (callback) callback();
+    })
+    .catch((error) => console.error("Failed to load period times:", error));
+}
+
+// The first real A/B marked while there's genuinely no schedule yet (not
+// just fetchAdminPeriodTimes still in flight — adminPeriodTimesFetched is
+// what tells those two apart) seeds periodTimes/default with KISJ's actual
+// regular schedule, so there's something sensible in there right away.
+// Never overwrites one that's already set, custom or otherwise.
+function seedDefaultScheduleTimesIfMissing() {
+  if (!adminPeriodTimesFetched || adminDefaultScheduleTimes) return;
+  adminDefaultScheduleTimes = DEFAULT_SCHEDULE_TIMES;
+  firebase
+    .firestore()
+    .collection("periodTimes")
+    .doc("default")
+    .set({ times: DEFAULT_SCHEDULE_TIMES })
+    .catch((error) => {
+      console.error("Failed to seed the default bell schedule:", error);
+      adminDefaultScheduleTimes = null;
+    });
+}
+
 // value is "A", "B", or null to clear back to unset ("?").
 function setDayType(iso, value) {
   const previous = adminDayTypes[iso] || null;
@@ -96,6 +153,156 @@ function setDayType(iso, value) {
     if (previous) adminDayTypes[iso] = previous;
     else delete adminDayTypes[iso];
     renderAdminCalendar();
+  });
+
+  if (value) seedDefaultScheduleTimesIfMissing();
+}
+
+// Builds ADMIN_SCHEDULE_BLOCK_LABELS.length rows of start/end
+// <input type="time"> pairs into container, pre-filled from times (or
+// blank if null/missing) — shared by the default-schedule card and each
+// day's own override section.
+function renderScheduleRows(container, times) {
+  container.innerHTML = "";
+  ADMIN_SCHEDULE_BLOCK_LABELS.forEach((label, index) => {
+    const row = document.createElement("div");
+    row.className = "admin-schedule-row";
+
+    const labelEl = document.createElement("span");
+    labelEl.className = "admin-schedule-row-label";
+    labelEl.textContent = label;
+
+    const startInput = document.createElement("input");
+    startInput.type = "time";
+    startInput.className = "admin-schedule-time-input";
+    startInput.value = (times && times[index] && times[index].start) || "";
+
+    const sep = document.createElement("span");
+    sep.className = "admin-schedule-row-sep";
+    sep.textContent = "–";
+
+    const endInput = document.createElement("input");
+    endInput.type = "time";
+    endInput.className = "admin-schedule-time-input";
+    endInput.value = (times && times[index] && times[index].end) || "";
+
+    row.append(labelEl, startInput, sep, endInput);
+    container.appendChild(row);
+  });
+}
+
+// The inverse of renderScheduleRows — reads the current input values back
+// out in the same [{start,end}] x5 shape.
+function readScheduleRows(container) {
+  const inputs = container.querySelectorAll(".admin-schedule-time-input");
+  const times = [];
+  for (let i = 0; i < inputs.length; i += 2) {
+    times.push({ start: inputs[i].value, end: inputs[i + 1].value });
+  }
+  return times;
+}
+
+function scheduleRowsComplete(times) {
+  return times.every((block) => block.start && block.end);
+}
+
+// The Bell Schedule popup — opened via the clock icon next to the A/B/?
+// toggle, not tied to whichever day happens to be selected. Rebuilt fresh
+// on each open, same pattern as the other popups in this app (Add
+// Missing Assessment, "Learn More", the confirm dialog): entrance/exit
+// both animate via --visible, toggled off with a delayed removal so the
+// reverse transition (see closeScheduleModal) actually gets to play.
+let scheduleModalOverlay = null;
+
+function buildScheduleModal() {
+  const overlay = document.createElement("div");
+  overlay.className = "admin-schedule-overlay";
+  overlay.innerHTML = `
+    <div class="admin-schedule-dialog">
+      <button type="button" class="admin-schedule-close-btn" aria-label="Close">×</button>
+      <h2 class="admin-schedule-title">Bell Schedule</h2>
+      <div class="admin-schedule-rows"></div>
+      <button type="button" class="admin-schedule-save-btn">Save Schedule</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const rows = overlay.querySelector(".admin-schedule-rows");
+  const saveBtn = overlay.querySelector(".admin-schedule-save-btn");
+  renderScheduleRows(rows, adminDefaultScheduleTimes);
+
+  overlay.querySelector(".admin-schedule-close-btn").addEventListener("click", closeScheduleModal);
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) closeScheduleModal();
+  });
+
+  saveBtn.addEventListener("click", () => {
+    const times = readScheduleRows(rows);
+    if (!scheduleRowsComplete(times)) {
+      showAdminToast("Fill in every start and end time first.");
+      return;
+    }
+    saveBtn.disabled = true;
+    firebase
+      .firestore()
+      .collection("periodTimes")
+      .doc("default")
+      .set({ times })
+      .then(() => {
+        adminDefaultScheduleTimes = times;
+        showAdminToast("Schedule saved.");
+        closeScheduleModal();
+      })
+      .catch((error) => {
+        console.error("Failed to save schedule:", error);
+        showAdminToast("Something went wrong saving the schedule. Please try again.");
+        saveBtn.disabled = false;
+      });
+  });
+
+  return overlay;
+}
+
+function openScheduleModal() {
+  scheduleModalOverlay = buildScheduleModal();
+  const dialog = scheduleModalOverlay.querySelector(".admin-schedule-dialog");
+  const animate = window.animationsEnabled();
+  if (!animate) {
+    dialog.classList.add("admin-schedule-dialog--instant");
+    scheduleModalOverlay.classList.add("admin-schedule-overlay--instant");
+  }
+  void dialog.offsetWidth; // force reflow so the entrance transition below actually plays
+  dialog.classList.add("admin-schedule-dialog--visible");
+  scheduleModalOverlay.classList.add("admin-schedule-overlay--visible");
+  if (!animate) {
+    void dialog.offsetWidth; // commit the instant state before re-enabling the transition
+    dialog.classList.remove("admin-schedule-dialog--instant");
+    scheduleModalOverlay.classList.remove("admin-schedule-overlay--instant");
+  }
+}
+
+function closeScheduleModal() {
+  if (!scheduleModalOverlay) return;
+  const closingOverlay = scheduleModalOverlay;
+  const dialog = closingOverlay.querySelector(".admin-schedule-dialog");
+  scheduleModalOverlay = null;
+  if (!window.animationsEnabled()) {
+    closingOverlay.remove();
+    return;
+  }
+  // Reverses the entrance transition above.
+  dialog.classList.remove("admin-schedule-dialog--visible");
+  closingOverlay.classList.remove("admin-schedule-overlay--visible");
+  setTimeout(() => closingOverlay.remove(), 250);
+}
+
+function initScheduleModal() {
+  const openBtn = document.getElementById("admin-schedule-open-btn");
+  if (!openBtn) return;
+  openBtn.addEventListener("click", openScheduleModal);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && scheduleModalOverlay) closeScheduleModal();
   });
 }
 
@@ -518,6 +725,7 @@ function initAdminPage() {
   setupAdminCourseDropdown(courseInput, () => syncAdminDivisionPicker(courseInput));
   setupTypeToggle();
   setupDayTypeToggle();
+  initScheduleModal();
 
   // Only courses that exist in COURSE_CATALOG can be scheduled — anything
   // else warns instead of silently accepting it. Checked on blur, not
@@ -572,6 +780,7 @@ function initAdminPage() {
     adminOtherTypeText = "";
   });
 
+  fetchAdminPeriodTimes();
   fetchAdminDayTypes(() => fetchAdminAssessments(renderAdminCalendar));
 }
 

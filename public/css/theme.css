@@ -38,6 +38,11 @@
      surface here, so it's bumped up slightly to stay as legible as it is
      in light mode. */
   --preview-opacity: 0.45;
+
+  /* Gray reads as "dim" rather than "glowing" against a near-black page —
+     white is what actually looks like a glow here, but solid white was
+     too strong; translucent instead so it's a soft halo, not a hard ring. */
+  --color-avatar-glow: rgba(255, 255, 255, 0.35);
 }
 
 /* Light mode casts this one 2px toward the bottom (see style.css) — in
