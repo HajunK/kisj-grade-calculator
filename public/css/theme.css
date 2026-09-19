@@ -43,6 +43,11 @@
      white is what actually looks like a glow here, but solid white was
      too strong; translucent instead so it's a soft halo, not a hard ring. */
   --color-avatar-glow: rgba(255, 255, 255, 0.35);
+
+  /* Between the page background (#121212) and --color-surface (#363636)
+     — a dark gray of its own, not a lighter one, so it still reads as
+     understated rather than becoming a brighter card than the ones above. */
+  --color-post-card-bg: #262626;
 }
 
 /* Light mode casts this one 2px toward the bottom (see style.css) — in

@@ -87,9 +87,10 @@ function positionAuthMenu(avatarBtn, menu) {
   menu.style.right = `${window.innerWidth - rect.right}px`;
 }
 
-// label -> what clicking it does. Settings/Login Keys open their own
-// popups (see settings-modal.js) — guarded with typeof defensively, in
-// case a future page loads auth.js without it.
+// label -> what clicking it does. My Courses/Settings/Login Keys each open
+// their own popup (see my-courses.js/settings-modal.js) — guarded with
+// typeof defensively, since not every page loads the script that defines
+// one (e.g. the admin-only pages never load my-courses.js).
 function buildAuthMenuItem(label, onClick) {
   const item = document.createElement("button");
   item.type = "button";
@@ -108,6 +109,9 @@ function openAuthMenu(avatarBtn) {
   const menu = document.createElement("div");
   menu.className = "auth-menu";
 
+  if (typeof openMyCoursesModal === "function") {
+    menu.appendChild(buildAuthMenuItem("My Courses", openMyCoursesModal));
+  }
   if (typeof openSettingsModal === "function") {
     menu.appendChild(buildAuthMenuItem("Settings", openSettingsModal));
   }

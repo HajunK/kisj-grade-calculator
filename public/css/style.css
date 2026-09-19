@@ -2,8 +2,13 @@
    background into a squircle (a superellipse curve) instead of a plain
    circular arc — Apple's own "continuous corner" look. Only the panel
    cards get corner-shape: squircle, declared alongside their own
-   border-radius further down. Chromium-only for now; degrades safely to
-   plain rounded corners elsewhere. */
+   border-radius further down. Deliberately NOT used on pill-shaped UI
+   (buttons, badges, toggles, border-radius: 999px) — tried once, reverted:
+   at a full pill radius (half the box height) Chromium's squircle/
+   superellipse curve reads as visibly squared-off rather than smoother,
+   since there's no straight middle section left for it to blend into
+   gently the way there is on a lightly-rounded card corner. Chromium-only
+   for now; degrades safely to plain rounded corners elsewhere. */
 
 /* A squircle reads as less round than a circular arc at the same radius,
    so each panel's border-radius is wrapped in
@@ -60,6 +65,11 @@
      this uses the more visibly gray --color-gray-light instead; white
      instead in dark mode, see theme.css */
   --color-avatar-glow: var(--color-gray-light);
+  /* Domain posts — deliberately not --color-surface (white), so they
+     read as more understated than the class cards above them; dark mode
+     override is a shade of gray of its own too, not just this same value
+     unchanged, see theme.css. */
+  --color-post-card-bg: #d6d6d6;
 }
 
 html {
@@ -342,6 +352,53 @@ body {
 
 .classes-container--scrolling::-webkit-scrollbar-thumb {
   opacity: 1;
+}
+
+/* Admin-authored posts, below the class cards — same left/right padding
+   as .classes-container above so cards line up with it. */
+.domain-posts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 48px;
+}
+
+.domain-posts[hidden] {
+  display: none;
+}
+
+.domain-post-card {
+  background: var(--color-post-card-bg);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 14px 24px;
+}
+
+.domain-post-title {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.domain-post-body {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+}
+
+.domain-post-link {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-accent-strong);
+}
+
+.domain-post-link:hover {
+  text-decoration: underline;
 }
 
 .page-content {
@@ -1091,7 +1148,7 @@ body {
 }
 
 .settings-divider {
-  height: 1px;
+  height: 1.5px;
   background: var(--color-gray-lighter);
 }
 
@@ -1287,6 +1344,14 @@ body {
   transition: opacity 0.25s ease;
 }
 
+/* display: flex above beats the [hidden] attribute's own default — only
+   needed by the My Courses popup, which (unlike Settings/Login Keys) is
+   static HTML toggled via .hidden rather than only ever existing in the
+   DOM while actually open. */
+.settings-modal-overlay[hidden] {
+  display: none;
+}
+
 .settings-modal-overlay--visible {
   opacity: 1;
 }
@@ -1396,67 +1461,60 @@ body {
   transition: none;
 }
 
-.schedule-container {
-  display: flex;
-  align-items: stretch;
-  gap: 32px;
+/* The My Courses popup — opened from the account-menu dropdown (see
+   auth.js/my-courses.js), on whichever page the user happens to be on.
+   Reuses .settings-card (box styling, including its own 32px padding —
+   same breathing room as Settings/Login Keys) and .settings-modal-card
+   (popup entrance/exit + scroll) as-is; this only overrides the width. */
+.my-courses-modal-card {
+  flex: 0 0 520px;
+  /* .settings-card's own 16px gap is meant for its sparser rows —
+     .schedule-row already carries its own 10px top/bottom padding, so
+     stacking both would double up the spacing between periods. */
+  gap: 0;
 }
 
-.schedule-cards-column {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
+/* gap: 0 above means the A-day/B-day divider (between Periods 4 and 5)
+   needs its own breathing room too, instead of relying on the card's gap. */
+.my-courses-modal-card .settings-divider {
+  margin: 6px 0;
 }
 
-/* Same visual language as .class-card (background, radius, shadow) — just
-   a different width/padding since this card's content is a form, not a
-   fixed-height grade summary. */
-.schedule-card {
-  width: 540px;
-  background: var(--color-surface);
-  border-radius: calc(20px * var(--squircle-scale));
-  corner-shape: squircle;
-  padding: 24px 32px 32px;
-  box-shadow: 0 8px 24px var(--color-shadow);
-}
-
-/* Matches .class-name's size/weight/color; centered instead of left-aligned. */
-.schedule-title {
-  margin: 0 0 16px;
-  font-size: 28px;
-  font-weight: var(--fw-class-name);
-  color: var(--color-text-primary);
-  text-align: center;
+/* gap: 0 above means this needs its own breathing room below it now,
+   instead of relying on the card's gap for the space before the first row. */
+.my-courses-modal-card .settings-title {
+  margin-bottom: 8px;
 }
 
 .schedule-row {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
   padding: 10px 0;
   /* The whole row shows the text-edit cursor, not just the input, so the
      row's own padding still feels like part of the same text field. */
   cursor: text;
 }
 
-/* Matches .assessment-label's size/weight; grayed out like a label. */
+/* Matches .assessment-label's size/weight; grayed out like a label. Sized
+   for "Period N" (every N from 1-8 is the same 8 characters, so this never
+   needs to reflow row to row). */
 .schedule-label {
-  flex: 0 0 120px;
+  flex: 0 0 78px;
   font-size: 17px;
   font-weight: var(--fw-assessment-label);
   color: var(--color-gray-dark);
+  text-align: left;
 }
 
-/* Un-hides a course previously hidden from Domain. Positioned absolutely,
-   out of the row's own flex flow, so its presence/absence never shifts
-   where the course text starts. left: 108px sits just inside
-   .schedule-label's own flex: 0 0 120px edge. */
+/* Un-hides a course previously hidden from Domain. A normal (not
+   absolutely positioned) flex item now, placed last in the row's markup —
+   sits right after .schedule-field, or after .division-picker on a row
+   that has one — so .schedule-field's own flex: 1 naturally shrinks to
+   make room for it whenever it's shown, instead of overlapping. */
 .show-course-btn {
-  position: absolute;
-  left: 108px;
-  top: 50%;
-  transform: translateY(-50%);
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1660,9 +1718,10 @@ body {
    its day; on the Assessments admin page, a month-grid where a day only
    reveals its assessments once clicked. Both get a fixed pixel WIDTH
    (this shared rule's 560px, wider for My Courses further down). HEIGHT
-   is left off this shared rule: on My Courses, align-items: stretch on
-   .schedule-container sizes this card to match the A-Day/B-Day column;
-   the Assessments page gets a fixed height of its own instead. */
+   is left off this shared rule: on My Courses it just sizes to its own
+   content now that the period-editing panel is a popup rather than an
+   always-visible sibling to stretch-match; the Assessments page gets a
+   fixed height of its own instead. */
 
 .assessment-calendar-card {
   width: 560px;
@@ -1789,7 +1848,8 @@ body {
   width: 100%;
   aspect-ratio: 1;
   border: none;
-  border-radius: 12px;
+  border-radius: calc(10px * var(--squircle-scale));
+  corner-shape: squircle;
   background: none;
   font: inherit;
   font-size: 15px;
@@ -1798,6 +1858,14 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* The Add Missing Assessment modal's own calendar (see my-courses.js) —
+   same shared .assessment-calendar-day as the admin Assessments page's,
+   but plain-rounded here rather than a squircle. */
+.add-assessment-cal-grid .assessment-calendar-day {
+  border-radius: 10px;
+  corner-shape: round;
 }
 
 .assessment-calendar-day--outside {
@@ -2210,6 +2278,16 @@ body {
   box-shadow: 0 8px 24px var(--color-shadow);
 }
 
+/* Posts admin reuses .admin-day-panel's whole layout standalone (no
+   sibling calendar to size itself against, unlike Assessments' own use
+   of it) — just needs its own width constraint instead of stretching to
+   the full page. */
+.posts-admin-panel {
+  flex: none;
+  width: 100%;
+  max-width: 500px;
+}
+
 .admin-day-panel-header {
   display: flex;
   align-items: center;
@@ -2270,6 +2348,14 @@ body {
   scrollbar-color: var(--color-scrollbar-thumb) transparent;
 }
 
+/* display: flex above beats the [hidden] attribute's own default — only
+   needed by the Posts admin page, which (unlike the Assessments day
+   panel) toggles this whole list via .hidden rather than always keeping
+   it around with an empty-state row inside. */
+.admin-day-entry-list[hidden] {
+  display: none;
+}
+
 .admin-day-entry-list::-webkit-scrollbar {
   width: 4px;
 }
@@ -2321,6 +2407,76 @@ body {
 .admin-day-entry-delete:hover {
   background: var(--color-gray-lighter);
   color: var(--color-text-primary);
+}
+
+/* Posts admin — same flat-gray input look as .confirm-dialog-input etc. */
+.posts-input {
+  font: inherit;
+  font-size: 15px;
+  color: var(--color-text-primary);
+  background: var(--color-gray-lighter);
+  border: none;
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.posts-input:focus {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: -2px;
+}
+
+.posts-textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+
+.posts-empty {
+  font-size: 14px;
+  color: var(--color-gray-dark);
+}
+
+/* Reuses .admin-day-entry-list's own scroll container — just a different
+   row shape (multi-line content + a top-aligned delete button, rather
+   than .admin-day-entry's single-line one). */
+.posts-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 0;
+}
+
+.posts-entry + .posts-entry {
+  border-top: 1px solid var(--color-gray-lighter);
+}
+
+.posts-entry-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.posts-entry-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.posts-entry-body {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--color-gray-dark);
+  white-space: pre-wrap;
+}
+
+.posts-entry-link {
+  font-size: 13px;
+  color: var(--color-accent-strong);
+  word-break: break-all;
 }
 
 .admin-add-form {
@@ -2583,9 +2739,14 @@ body {
   box-shadow: 0 8px 24px var(--color-shadow);
 }
 
-.domain-empty-hint a {
+.domain-empty-hint-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
   color: var(--color-accent);
   text-decoration: underline;
+  cursor: pointer;
 }
 
 .class-card {
@@ -2657,6 +2818,11 @@ body {
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
+  /* A click-drag anywhere near one of these (e.g. selecting a score value
+     next to it) would otherwise catch the icon in the selection highlight,
+     and it's draggable like any other <img> by default too. */
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .letter-grade--lg {

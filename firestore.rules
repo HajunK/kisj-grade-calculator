@@ -67,5 +67,13 @@ service cloud.firestore {
       allow delete: if request.auth != null
         && (resource.data.emails.size() <= 1 || isAdmin());
     }
+
+    // Admin-authored posts/announcements shown on Domain, below the class
+    // cards — always visible to every signed-in student, no per-user
+    // dismiss. Same public-read/admin-write rule as assessments above.
+    match /posts/{postId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
   }
 }

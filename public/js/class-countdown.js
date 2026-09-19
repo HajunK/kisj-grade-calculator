@@ -135,9 +135,20 @@ function updateClassCountdown() {
   if (!classCountdownEl) classCountdownEl = buildCountdownEl();
   classCountdownEl.hidden = false;
 
-  const minutesLeft = Math.max(0, Math.floor(current.minutesLeft));
+  // Under a minute left, "0m" the whole time it's ticking down would read
+  // as frozen — count down in seconds instead until the block actually ends.
+  const rawMinutesLeft = Math.max(0, current.minutesLeft);
+  const timeText =
+    rawMinutesLeft < 1 ? `${Math.floor(rawMinutesLeft * 60)}s` : `${Math.floor(rawMinutesLeft)}m`;
+
   const timeEl = classCountdownEl.querySelector(".class-countdown-time");
-  animateNumberChange(timeEl, `${minutesLeft}m`, wasHidden ? "instant" : undefined);
+  // The digit-roll animation picks its direction by comparing the old and
+  // new numbers as plain values (see animateNumberChange) — "1m" -> "59s"
+  // would otherwise read as a jump UP from 1 to 59 right as the unit
+  // flips. Snap instantly across that one boundary; every tick within the
+  // same unit still rolls normally.
+  const unitJustSwitched = /m$/.test(timeEl.dataset.rollValue || "") && timeText.endsWith("s");
+  animateNumberChange(timeEl, timeText, wasHidden || unitJustSwitched ? "instant" : undefined);
   classCountdownEl.querySelector(".class-countdown-label").textContent = label;
   updatePillContrastOutline();
 }

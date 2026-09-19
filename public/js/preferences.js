@@ -164,6 +164,12 @@ window.setPreference = function setPreference(key, value) {
   watchSystemTheme(currentPrefs.appearance);
   if (typeof window.refreshGradeIcons === "function") window.refreshGradeIcons();
   if (typeof window.refreshUiIcons === "function") window.refreshUiIcons();
+  // Previously only dispatched once a cross-device confirmation/revert came
+  // back (see the auth listener below) — meaning a change made right here,
+  // in this tab, never told the rest of the page anything had changed at
+  // all. Whatever depends on a preference (e.g. Domain's class-card
+  // heights reacting to "Show upcoming assessments") listens for this.
+  notifyPreferencesChanged();
 
   if (!prefsUid || typeof firebase === "undefined" || !firebase.firestore) {
     // Not signed in — keep it locally, scoped to this device.

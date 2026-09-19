@@ -168,6 +168,13 @@ function initSuggestionsPage() {
   fetchSuggestions(renderSuggestions);
 }
 
+// Date labels are only ever formatted at render time (see
+// formatSuggestionDate) — re-render on a Settings > Date format change so
+// an already-visible list reflects it immediately instead of on next load.
+window.addEventListener("app:preferences-changed", () => {
+  if (suggestionsInitialized) renderSuggestions();
+});
+
 // Purely cosmetic — the real gate is firestore.rules, checking the same
 // email server-side for the accept/decline writes themselves.
 function handleSuggestionsAuthState(user) {

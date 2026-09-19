@@ -49,8 +49,8 @@
     <a class="tab" href="domain">Domain</a>
     <a class="tab" href="gpa">GPA</a>
     <a class="tab tab--admin-only" href="assessments">Assessments</a>
-    <a class="tab tab--admin-only tab--active" href="suggestions">Suggestions</a>
-    <a class="tab tab--admin-only" href="posts">Posts</a>
+    <a class="tab tab--admin-only" href="suggestions">Suggestions</a>
+    <a class="tab tab--admin-only tab--active" href="posts">Posts</a>
     <div class="auth-container"></div>
   </nav>
   <div class="page-content">
@@ -58,27 +58,35 @@
       This page is for admins only.
     </p>
 
-    <div class="suggestions-card" id="suggestions-layout" hidden>
-      <h2 class="suggestions-title">Suggestions</h2>
+    <div class="admin-day-panel posts-admin-panel" id="posts-layout" hidden>
+      <div class="admin-day-panel-header">
+        <h2 class="admin-day-panel-title">Posts</h2>
+      </div>
 
-      <!-- Shown until the suggested collection actually loads. -->
-      <div class="assessment-calendar-loading" id="suggestions-loading">
+      <!-- Shown until the posts collection actually loads. -->
+      <div class="assessment-calendar-loading" id="posts-loading">
         <span class="assessment-calendar-spinner"></span>
       </div>
 
-      <p class="suggestions-empty" id="suggestions-empty" hidden>Nothing suggested right now.</p>
+      <p class="posts-empty" id="posts-empty" hidden>Nothing posted yet.</p>
 
-      <div class="suggestions-list" id="suggestions-list" hidden>
-        <div class="suggestions-row suggestions-row--header">
-          <span class="suggestions-cell suggestions-cell--date">Date</span>
-          <span class="suggestions-cell suggestions-cell--course">Course</span>
-          <span class="suggestions-cell suggestions-cell--type">Type</span>
-          <span class="suggestions-cell suggestions-cell--count">Count</span>
-          <span class="suggestions-cell suggestions-cell--emails">Emails</span>
-          <span class="suggestions-cell suggestions-cell--actions"></span>
+      <ul class="admin-day-entry-list" id="posts-entry-list" hidden></ul>
+
+      <form class="admin-add-form" id="posts-add-form">
+        <div class="admin-add-field">
+          <span class="admin-add-label">Title</span>
+          <input type="text" class="posts-input" id="posts-title-input" autocomplete="off" placeholder="Post title" />
         </div>
-        <div class="suggestions-rows" id="suggestions-rows"></div>
-      </div>
+        <div class="admin-add-field">
+          <span class="admin-add-label">Body</span>
+          <textarea class="posts-input posts-textarea" id="posts-body-input" placeholder="What do you want to say?"></textarea>
+        </div>
+        <div class="admin-add-field">
+          <span class="admin-add-label">Link URL (optional)</span>
+          <input type="url" class="posts-input" id="posts-link-input" autocomplete="off" placeholder="https://..." />
+        </div>
+        <button type="submit" class="admin-add-submit-btn">Add Post</button>
+      </form>
     </div>
   </div>
 
@@ -94,6 +102,6 @@
        blocks, which broke this before. A same-origin file can't be. -->
   <script defer src="js/vendor/qrcode-generator.js"></script>
   <script defer src="js/settings-modal.js"></script>
-  <script defer src="js/suggestions-admin.js"></script>
+  <script defer src="js/posts-admin.js"></script>
 </body>
 </html>

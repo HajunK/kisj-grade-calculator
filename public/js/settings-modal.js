@@ -352,6 +352,8 @@ document.addEventListener("keydown", (event) => {
 
 function openSettingsModal() {
   closeSettingsModal();
+  // Only relevant on a page that also loaded my-courses.js (see auth.js).
+  if (typeof closeMyCoursesModal === "function") closeMyCoursesModal();
 
   const overlay = smBuildOverlay(`
     <div class="settings-card settings-modal-card">
@@ -458,6 +460,7 @@ function smRenderEncryptionQr(overlay, code) {
 
 function openLoginKeysModal() {
   closeSettingsModal();
+  if (typeof closeMyCoursesModal === "function") closeMyCoursesModal();
 
   const overlay = smBuildOverlay(`
     <div class="settings-card login-keys-card settings-modal-card">

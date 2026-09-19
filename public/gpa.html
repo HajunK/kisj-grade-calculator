@@ -45,11 +45,12 @@
   <nav class="tab-bar">
     <img class="tab-bar-logo tab-bar-logo--light" src="icons/logos/light-logo.png" alt="" />
     <img class="tab-bar-logo tab-bar-logo--dark" src="icons/logos/dark-logo.png" alt="" />
-    <a class="tab" href="my-courses">My Courses</a>
+    <a class="tab" href="my-courses">Calendar</a>
     <a class="tab" href="domain">Domain</a>
     <a class="tab tab--active" href="gpa">GPA</a>
     <a class="tab tab--admin-only" href="assessments">Assessments</a>
     <a class="tab tab--admin-only" href="suggestions">Suggestions</a>
+    <a class="tab tab--admin-only" href="posts">Posts</a>
     <div class="auth-container"></div>
   </nav>
   <div class="page-content">
@@ -96,6 +97,10 @@
   <script defer src="js/settings-modal.js"></script>
   <script defer src="js/shared.js"></script>
   <script defer src="js/assessments-shared.js"></script>
+  <!-- Not for the calendar/period-editing UI on this page (there is none)
+       — this defines openMyCoursesModal, opened from the account-menu
+       dropdown (see auth.js) on any page that loads it. -->
+  <script defer src="js/my-courses.js"></script>
   <script defer src="js/gpa.js"></script>
   <script defer src="js/class-countdown.js"></script>
   <script defer src="js/boot.js"></script>

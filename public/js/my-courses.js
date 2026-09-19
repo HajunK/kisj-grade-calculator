@@ -1,6 +1,7 @@
-// My Courses page: the 8 period-name inputs, the course-catalog search
-// dropdown, saving each period as it's typed, and the read-only assessment
-// calendar.
+// The 8 period-name inputs (shown in a popup opened from the account-menu
+// dropdown — see openMyCoursesModal below), the course-catalog search
+// dropdown, saving each period as it's typed, and the Calendar page's
+// read-only assessment calendar.
 
 function savePeriods(periods) {
   appData.periods = periods;
@@ -982,15 +983,183 @@ function initAddAssessmentModal(refreshAssessmentCalendar) {
   });
 }
 
-// My Courses page: load saved period names into the inputs, wire up the
-// search dropdown, save as the user types, and show/hide each row's clear
-// (×) button based on whether it has a value. A no-op on any other page.
-function initMyCoursesPage() {
-  const scheduleInputs = document.querySelectorAll(".schedule-input");
-  if (scheduleInputs.length === 0) return;
+// Calendar page: sets up the read-only assessment calendar and its "Add
+// Missing Assessment" modal. A no-op on any other page (both check for
+// their own page-specific markup and bail if it's missing). The period
+// inputs themselves no longer live on this page at all — see
+// openMyCoursesModal below, opened from the account-menu dropdown (see
+// auth.js) on any page.
+let myCoursesRefreshCalendar = null;
 
+function initMyCoursesPage() {
+  myCoursesRefreshCalendar = initAssessmentCalendar();
+  initAddAssessmentModal(myCoursesRefreshCalendar);
+}
+
+// Shows a row of division circles next to a period's input once its
+// typed text exactly matches a course that has them; removes them
+// otherwise, correcting a stale division left over from a previously
+// different course in this slot. commit=false (while typing) only ever
+// updates what's shown, never what's saved — a keystroke mid-edit
+// briefly not matching any catalog course shouldn't wipe an
+// already-picked division. commit=true (blur, a real selection, clear)
+// is when a stale division actually gets corrected/persisted.
+function syncDivisionPicker(input, index, commit = true) {
+  const row = input.closest(".schedule-row");
+  const picker = row.querySelector(".division-picker");
+  const course = findCourseCatalogEntry(input.value.trim());
+  const divisions = course && course.divisions;
+
+  const allDivisions = loadPeriodDivisions();
+  const saved = allDivisions[index] || "";
+
+  if (!divisions || divisions.length === 0) {
+    picker.hidden = true;
+    picker.innerHTML = "";
+    if (commit && saved) {
+      allDivisions[index] = "";
+      savePeriodDivisions(allDivisions);
+    }
+    return;
+  }
+
+  const current = divisions.includes(saved) ? saved : "";
+  if (commit && current !== saved) {
+    allDivisions[index] = current;
+    savePeriodDivisions(allDivisions);
+  }
+
+  picker.hidden = false;
+  picker.innerHTML = "";
+
+  // Absolutely positioned in CSS, so adding it never shifts the circles
+  // below — only shown while nothing's been picked yet.
+  if (!current) {
+    const label = document.createElement("span");
+    label.className = "division-picker-label";
+    label.textContent = "Select division";
+    picker.appendChild(label);
+  }
+
+  divisions.forEach((division) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "division-option";
+    btn.textContent = division;
+    btn.classList.toggle("division-option--selected", division === current);
+    // mousedown + preventDefault — clicking would otherwise blur the
+    // course-name input first, whose blur handler rebuilds this whole
+    // picker, destroying this button before its click fires.
+    btn.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+    });
+    btn.addEventListener("click", () => {
+      const all = loadPeriodDivisions();
+      all[index] = division;
+      savePeriodDivisions(all);
+      // Rebuilt rather than patched — the "Select your division" label
+      // above also needs to disappear.
+      syncDivisionPicker(input, index);
+      // A real, finished choice — same as any other commit.
+      if (myCoursesRefreshCalendar) myCoursesRefreshCalendar(true, true);
+      refreshDomainClasses();
+    });
+    picker.appendChild(btn);
+  });
+}
+
+// Only defined on a page that also loads domain.js — a no-op everywhere
+// else (Calendar, GPA). animate=true fades the change in/out the same way
+// the manual hide button on Domain does (see fadeInCard/fadeOutAndRemoveCard
+// there), since unlike the page's own first render, this is a live edit
+// happening while Domain might already be on screen.
+function refreshDomainClasses() {
+  if (typeof renderDomainClasses === "function") renderDomainClasses(true);
+}
+
+// .schedule-field grows to fill whatever room .show-course-btn frees up
+// when it disappears (see syncShowCourseButton) — flex: 1 does that
+// instantly on its own, but a brief transition reads better than a snap.
+// Classic FLIP: measure the width before removing the button, lock it in
+// place with an explicit flex-basis, then transition to the new natural
+// width once the button's actually gone. No-op (button just hides
+// instantly) with animations off.
+function animateFieldGrowth(field, hideBtn) {
+  if (!window.animationsEnabled()) {
+    hideBtn();
+    return;
+  }
+  const startWidth = field.getBoundingClientRect().width;
+  hideBtn();
+  const endWidth = field.getBoundingClientRect().width;
+
+  // getBoundingClientRect measures the border box (content + padding), but
+  // flex-basis sizes .schedule-field's own content box by default (its
+  // padding: 6px 10px isn't included) — locking flex-basis to those
+  // measured widths without this would render ~20px too wide the entire
+  // time (its own left+right padding), overshooting past the real end
+  // width until the lock is released, worse the less room .show-course-btn
+  // itself was actually taking (e.g. a row with a division picker too).
+  field.style.boxSizing = "border-box";
+  field.style.transition = "none";
+  field.style.flex = `0 0 ${startWidth}px`;
+  void field.offsetWidth; // force reflow so the starting width above takes effect first
+  field.style.transition = "flex-basis 250ms ease";
+  field.style.flex = `0 0 ${endWidth}px`;
+
+  field.addEventListener(
+    "transitionend",
+    () => {
+      // Back to the CSS class's own flex: 1 and content-box sizing — this
+      // was only ever a temporary lock for the animation, not a permanent
+      // fixed width.
+      field.style.transition = "";
+      field.style.flex = "";
+      field.style.boxSizing = "";
+    },
+    { once: true }
+  );
+}
+
+// Shows the show-course button next to a period whenever the course
+// currently typed there has at least one card hidden on Domain — a
+// combo course can have either of its two cards hidden independently.
+function syncShowCourseButton(input, index) {
+  const row = input.closest(".schedule-row");
+  const btn = row.querySelector(".show-course-btn");
+  if (!btn) return;
+
+  const name = input.value.trim();
+  const cardNames = name ? expandCourseNames([name]) : [];
+  const hidden = loadHiddenCourses();
+  const relevant = cardNames.filter((cardName) => hidden.includes(cardName));
+
+  btn.hidden = relevant.length === 0;
+  if (relevant.length === 0) return;
+
+  const icon = btn.querySelector(".show-course-icon");
+  if (icon && !icon.src) icon.src = uiIconPath("show.png");
+
+  // Re-bound on every sync so it always un-hides whatever's actually
+  // relevant right now, since the course in this slot may have changed.
+  btn.onclick = () => {
+    saveHiddenCourses(loadHiddenCourses().filter((cardName) => !relevant.includes(cardName)));
+    animateFieldGrowth(row.querySelector(".schedule-field"), () => {
+      btn.hidden = true;
+    });
+    showToast(`View ${name} in the Domain Tab`);
+    refreshDomainClasses();
+  };
+}
+
+// Wires every .schedule-input inside a freshly-built My Courses popup —
+// loads its saved value, sets up the catalog dropdown/division
+// picker/show-course button, and persists on input/change/blur/clear.
+// Split out from openMyCoursesModal below since the popup's markup is
+// rebuilt from scratch on every open (see buildScheduleRowHTML).
+function wireScheduleRows(overlay) {
   const periods = loadPeriods();
-  const firstPeriodInput = document.querySelector('.schedule-input[data-period="0"]');
+  const firstPeriodInput = overlay.querySelector('.schedule-input[data-period="0"]');
 
   // Only Period 1 ever gets the placeholder, and only while every period is
   // still empty — once any course is entered anywhere, it goes away.
@@ -998,112 +1167,19 @@ function initMyCoursesPage() {
     if (!firstPeriodInput) return;
     const allEmpty = loadPeriods().every((name) => !name || name.trim() === "");
     firstPeriodInput.placeholder = allEmpty ? "Start typing here" : "";
+    return allEmpty;
   };
-  updateFirstPeriodPlaceholder();
+  const showingPlaceholder = updateFirstPeriodPlaceholder();
 
-  const refreshAssessmentCalendar = initAssessmentCalendar();
-  initAddAssessmentModal(refreshAssessmentCalendar);
-
-  // Shows a row of division circles next to a period's input once its
-  // typed text exactly matches a course that has them; removes them
-  // otherwise, correcting a stale division left over from a previously
-  // different course in this slot. commit=false (while typing) only ever
-  // updates what's shown, never what's saved — a keystroke mid-edit
-  // briefly not matching any catalog course shouldn't wipe an
-  // already-picked division. commit=true (blur, a real selection, clear)
-  // is when a stale division actually gets corrected/persisted.
-  function syncDivisionPicker(input, index, commit = true) {
-    const row = input.closest(".schedule-row");
-    const picker = row.querySelector(".division-picker");
-    const course = findCourseCatalogEntry(input.value.trim());
-    const divisions = course && course.divisions;
-
-    const allDivisions = loadPeriodDivisions();
-    const saved = allDivisions[index] || "";
-
-    if (!divisions || divisions.length === 0) {
-      picker.hidden = true;
-      picker.innerHTML = "";
-      if (commit && saved) {
-        allDivisions[index] = "";
-        savePeriodDivisions(allDivisions);
-      }
-      return;
-    }
-
-    const current = divisions.includes(saved) ? saved : "";
-    if (commit && current !== saved) {
-      allDivisions[index] = current;
-      savePeriodDivisions(allDivisions);
-    }
-
-    picker.hidden = false;
-    picker.innerHTML = "";
-
-    // Absolutely positioned in CSS, so adding it never shifts the circles
-    // below — only shown while nothing's been picked yet.
-    if (!current) {
-      const label = document.createElement("span");
-      label.className = "division-picker-label";
-      label.textContent = "Select division";
-      picker.appendChild(label);
-    }
-
-    divisions.forEach((division) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "division-option";
-      btn.textContent = division;
-      btn.classList.toggle("division-option--selected", division === current);
-      // mousedown + preventDefault — clicking would otherwise blur the
-      // course-name input first, whose blur handler rebuilds this whole
-      // picker, destroying this button before its click fires.
-      btn.addEventListener("mousedown", (event) => {
-        event.preventDefault();
-      });
-      btn.addEventListener("click", () => {
-        const all = loadPeriodDivisions();
-        all[index] = division;
-        savePeriodDivisions(all);
-        // Rebuilt rather than patched — the "Select your division" label
-        // above also needs to disappear.
-        syncDivisionPicker(input, index);
-        // A real, finished choice — same as any other commit.
-        if (refreshAssessmentCalendar) refreshAssessmentCalendar(true, true);
-      });
-      picker.appendChild(btn);
-    });
+  // The placeholder above only means anything if it's actually focused —
+  // auto-select it (nothing to select yet, but this also focuses the
+  // field) so the popup opens ready to type into immediately.
+  if (showingPlaceholder && firstPeriodInput) {
+    firstPeriodInput.focus();
+    firstPeriodInput.select();
   }
 
-  // Shows the show-course button next to a period whenever the course
-  // currently typed there has at least one card hidden on Domain — a
-  // combo course can have either of its two cards hidden independently.
-  function syncShowCourseButton(input, index) {
-    const row = input.closest(".schedule-row");
-    const btn = row.querySelector(".show-course-btn");
-    if (!btn) return;
-
-    const name = input.value.trim();
-    const cardNames = name ? expandCourseNames([name]) : [];
-    const hidden = loadHiddenCourses();
-    const relevant = cardNames.filter((cardName) => hidden.includes(cardName));
-
-    btn.hidden = relevant.length === 0;
-    if (relevant.length === 0) return;
-
-    const icon = btn.querySelector(".show-course-icon");
-    if (icon && !icon.src) icon.src = uiIconPath("show.png");
-
-    // Re-bound on every sync so it always un-hides whatever's actually
-    // relevant right now, since the course in this slot may have changed.
-    btn.onclick = () => {
-      saveHiddenCourses(loadHiddenCourses().filter((cardName) => !relevant.includes(cardName)));
-      btn.hidden = true;
-      showToast(`View ${name} in the Domain Tab`);
-    };
-  }
-
-  scheduleInputs.forEach((input) => {
+  overlay.querySelectorAll(".schedule-input").forEach((input) => {
     const index = Number(input.dataset.period);
     const field = input.closest(".schedule-field");
     const clearBtn = field.querySelector(".schedule-clear-btn");
@@ -1128,7 +1204,12 @@ function initMyCoursesPage() {
       syncShowCourseButton(input, index);
       // commit decides whether this can reveal/hide the calendar at all
       // (not mid-keystroke) and, when it does, whether that's animated.
-      if (refreshAssessmentCalendar) refreshAssessmentCalendar(commit, commit);
+      // null on any page without the calendar (e.g. Domain, GPA).
+      if (myCoursesRefreshCalendar) myCoursesRefreshCalendar(commit, commit);
+      // Same reasoning as the calendar above — only on a finished edit,
+      // not every keystroke, or a card would fade out/in on every letter
+      // typed instead of once the course name actually settles.
+      if (commit) refreshDomainClasses();
     };
     // "input" (every keystroke) never commits a division correction.
     // "change" and a direct blur both do.
@@ -1160,3 +1241,96 @@ function initMyCoursesPage() {
     });
   });
 }
+
+// --- My Courses popup ---
+// Opened from the account-menu dropdown (see auth.js), on whichever page
+// the user happens to be on — Calendar, Domain, or GPA (the only pages
+// that load this file). Built fresh each time, same as Settings/Login Keys
+// (see settings-modal.js), rather than toggled on static markup, since
+// there's no longer a page that's guaranteed to already have these rows
+// sitting in its DOM.
+
+let myCoursesModalOverlay = null;
+
+function buildScheduleRowHTML(index) {
+  return `
+    <div class="schedule-row">
+      <span class="schedule-label">Period ${index + 1}</span>
+      <div class="schedule-field">
+        <input class="schedule-input" type="text" autocomplete="off" data-period="${index}" />
+        <button class="schedule-clear-btn" type="button" aria-label="Clear">×</button>
+        <ul class="schedule-dropdown"></ul>
+      </div>
+      <div class="division-picker" hidden></div>
+      <button class="show-course-btn" type="button" data-period="${index}" aria-label="Show hidden course" hidden>
+        <img class="show-course-icon" alt="" />
+      </button>
+    </div>
+  `;
+}
+
+function openMyCoursesModal() {
+  // One popup at a time — mirrors closeMyCoursesModal's own guarded call
+  // from settings-modal.js.
+  if (typeof closeSettingsModal === "function") closeSettingsModal();
+  closeMyCoursesModal();
+
+  // A-day (Periods 1-4) / B-day (Periods 5-8) split — same divider as the
+  // Settings popup's own rows (see .settings-divider).
+  const rowsHTML = Array.from({ length: 8 }, (_, index) => {
+    const divider = index === 4 ? `<div class="settings-divider"></div>` : "";
+    return divider + buildScheduleRowHTML(index);
+  }).join("");
+  const overlay = document.createElement("div");
+  overlay.className = "settings-modal-overlay";
+  overlay.innerHTML = `
+    <div class="settings-card my-courses-modal-card settings-modal-card">
+      <button type="button" class="settings-modal-close-btn" aria-label="Close">×</button>
+      <h2 class="settings-title">My Courses</h2>
+      ${rowsHTML}
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  myCoursesModalOverlay = overlay;
+
+  wireScheduleRows(overlay);
+
+  overlay.querySelector(".settings-modal-close-btn").addEventListener("click", closeMyCoursesModal);
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) closeMyCoursesModal();
+  });
+
+  const card = overlay.querySelector(".settings-modal-card");
+  const animate = window.animationsEnabled();
+  if (!animate) {
+    card.classList.add("settings-modal-card--instant");
+    overlay.classList.add("settings-modal-overlay--instant");
+  }
+  void card.offsetWidth; // force reflow so the entrance transition below actually plays
+  card.classList.add("settings-modal-card--visible");
+  overlay.classList.add("settings-modal-overlay--visible");
+  if (!animate) {
+    void card.offsetWidth; // commit the instant state before re-enabling the transition
+    card.classList.remove("settings-modal-card--instant");
+    overlay.classList.remove("settings-modal-overlay--instant");
+  }
+}
+
+function closeMyCoursesModal() {
+  if (!myCoursesModalOverlay) return;
+  const closingOverlay = myCoursesModalOverlay;
+  const card = closingOverlay.querySelector(".settings-modal-card");
+  myCoursesModalOverlay = null;
+  if (!window.animationsEnabled()) {
+    closingOverlay.remove();
+    return;
+  }
+  // Reverses the entrance transition above.
+  card.classList.remove("settings-modal-card--visible");
+  closingOverlay.classList.remove("settings-modal-overlay--visible");
+  setTimeout(() => closingOverlay.remove(), 250);
+}
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && myCoursesModalOverlay) closeMyCoursesModal();
+});

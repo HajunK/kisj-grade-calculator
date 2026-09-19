@@ -45,139 +45,32 @@
   <nav class="tab-bar">
     <img class="tab-bar-logo tab-bar-logo--light" src="icons/logos/light-logo.png" alt="" />
     <img class="tab-bar-logo tab-bar-logo--dark" src="icons/logos/dark-logo.png" alt="" />
-    <a class="tab tab--active" href="my-courses">My Courses</a>
+    <a class="tab tab--active" href="my-courses">Calendar</a>
     <a class="tab" href="domain">Domain</a>
     <a class="tab" href="gpa">GPA</a>
     <a class="tab tab--admin-only" href="assessments">Assessments</a>
     <a class="tab tab--admin-only" href="suggestions">Suggestions</a>
+    <a class="tab tab--admin-only" href="posts">Posts</a>
     <div class="auth-container"></div>
   </nav>
   <div class="page-content page-content--flush-bottom">
-    <div class="schedule-container">
-      <div class="schedule-cards-column">
-        <div class="schedule-card">
-          <h2 class="schedule-title">A-Day</h2>
-          <div class="schedule-row">
-            <span class="schedule-label">Period 1</span>
-            <button class="show-course-btn" type="button" data-period="0" aria-label="Show hidden course" hidden>
-              <img class="show-course-icon" alt="" />
-            </button>
-            <div class="schedule-field">
-              <input class="schedule-input" type="text" autocomplete="off" data-period="0" />
-              <button class="schedule-clear-btn" type="button" aria-label="Clear">×</button>
-              <ul class="schedule-dropdown"></ul>
-            </div>
-            <div class="division-picker" hidden></div>
-          </div>
-          <div class="schedule-row">
-            <span class="schedule-label">Period 2</span>
-            <button class="show-course-btn" type="button" data-period="1" aria-label="Show hidden course" hidden>
-              <img class="show-course-icon" alt="" />
-            </button>
-            <div class="schedule-field">
-              <input class="schedule-input" type="text" autocomplete="off" data-period="1" />
-              <button class="schedule-clear-btn" type="button" aria-label="Clear">×</button>
-              <ul class="schedule-dropdown"></ul>
-            </div>
-            <div class="division-picker" hidden></div>
-          </div>
-          <div class="schedule-row">
-            <span class="schedule-label">Period 3</span>
-            <button class="show-course-btn" type="button" data-period="2" aria-label="Show hidden course" hidden>
-              <img class="show-course-icon" alt="" />
-            </button>
-            <div class="schedule-field">
-              <input class="schedule-input" type="text" autocomplete="off" data-period="2" />
-              <button class="schedule-clear-btn" type="button" aria-label="Clear">×</button>
-              <ul class="schedule-dropdown"></ul>
-            </div>
-            <div class="division-picker" hidden></div>
-          </div>
-          <div class="schedule-row">
-            <span class="schedule-label">Period 4</span>
-            <button class="show-course-btn" type="button" data-period="3" aria-label="Show hidden course" hidden>
-              <img class="show-course-icon" alt="" />
-            </button>
-            <div class="schedule-field">
-              <input class="schedule-input" type="text" autocomplete="off" data-period="3" />
-              <button class="schedule-clear-btn" type="button" aria-label="Clear">×</button>
-              <ul class="schedule-dropdown"></ul>
-            </div>
-            <div class="division-picker" hidden></div>
-          </div>
-        </div>
-
-        <div class="schedule-card">
-          <h2 class="schedule-title">B-Day</h2>
-          <div class="schedule-row">
-            <span class="schedule-label">Period 5</span>
-            <button class="show-course-btn" type="button" data-period="4" aria-label="Show hidden course" hidden>
-              <img class="show-course-icon" alt="" />
-            </button>
-            <div class="schedule-field">
-              <input class="schedule-input" type="text" autocomplete="off" data-period="4" />
-              <button class="schedule-clear-btn" type="button" aria-label="Clear">×</button>
-              <ul class="schedule-dropdown"></ul>
-            </div>
-            <div class="division-picker" hidden></div>
-          </div>
-          <div class="schedule-row">
-            <span class="schedule-label">Period 6</span>
-            <button class="show-course-btn" type="button" data-period="5" aria-label="Show hidden course" hidden>
-              <img class="show-course-icon" alt="" />
-            </button>
-            <div class="schedule-field">
-              <input class="schedule-input" type="text" autocomplete="off" data-period="5" />
-              <button class="schedule-clear-btn" type="button" aria-label="Clear">×</button>
-              <ul class="schedule-dropdown"></ul>
-            </div>
-            <div class="division-picker" hidden></div>
-          </div>
-          <div class="schedule-row">
-            <span class="schedule-label">Period 7</span>
-            <button class="show-course-btn" type="button" data-period="6" aria-label="Show hidden course" hidden>
-              <img class="show-course-icon" alt="" />
-            </button>
-            <div class="schedule-field">
-              <input class="schedule-input" type="text" autocomplete="off" data-period="6" />
-              <button class="schedule-clear-btn" type="button" aria-label="Clear">×</button>
-              <ul class="schedule-dropdown"></ul>
-            </div>
-            <div class="division-picker" hidden></div>
-          </div>
-          <div class="schedule-row">
-            <span class="schedule-label">Period 8</span>
-            <button class="show-course-btn" type="button" data-period="7" aria-label="Show hidden course" hidden>
-              <img class="show-course-icon" alt="" />
-            </button>
-            <div class="schedule-field">
-              <input class="schedule-input" type="text" autocomplete="off" data-period="7" />
-              <button class="schedule-clear-btn" type="button" aria-label="Clear">×</button>
-              <ul class="schedule-dropdown"></ul>
-            </div>
-            <div class="division-picker" hidden></div>
-          </div>
-        </div>
+    <!-- Hidden by default and only revealed once at least one period has
+         a course typed in — nothing to show a calendar for otherwise. -->
+    <div class="assessment-calendar-card my-courses-calendar-card" id="my-courses-calendar-card" hidden>
+      <div class="my-courses-calendar-header">
+        <h2 class="assessment-calendar-title">Upcoming Assessments</h2>
+        <button type="button" class="add-assessment-trigger-btn" id="add-assessment-trigger-btn">
+          + Add Missing Assessment
+        </button>
       </div>
-
-      <!-- Hidden by default and only revealed once at least one period has
-           a course typed in — nothing to show a calendar for otherwise. -->
-      <div class="assessment-calendar-card my-courses-calendar-card" id="my-courses-calendar-card" hidden>
-        <div class="my-courses-calendar-header">
-          <h2 class="assessment-calendar-title">Upcoming Assessments</h2>
-          <button type="button" class="add-assessment-trigger-btn" id="add-assessment-trigger-btn">
-            + Add Missing Assessment
-          </button>
-        </div>
-        <!-- Shown until the assessments collection actually loads — the
-             calendar stays hidden until then, rather than showing an
-             empty grid first. -->
-        <div class="assessment-calendar-loading" id="assessment-cal-loading">
-          <span class="assessment-calendar-spinner"></span>
-        </div>
-        <div class="assessment-calendar-weekday-row assessment-calendar-weekday-row--5col" id="assessment-cal-weekdays" hidden></div>
-        <div class="assessment-calendar-weeks" id="assessment-cal-weeks" hidden></div>
+      <!-- Shown until the assessments collection actually loads — the
+           calendar stays hidden until then, rather than showing an
+           empty grid first. -->
+      <div class="assessment-calendar-loading" id="assessment-cal-loading">
+        <span class="assessment-calendar-spinner"></span>
       </div>
+      <div class="assessment-calendar-weekday-row assessment-calendar-weekday-row--5col" id="assessment-cal-weekdays" hidden></div>
+      <div class="assessment-calendar-weeks" id="assessment-cal-weeks" hidden></div>
     </div>
   </div>
 

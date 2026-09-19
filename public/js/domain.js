@@ -1382,7 +1382,9 @@ function linkScoreListScroll(listA, listB) {
 }
 
 // hasFinal decides the grading split: 20% formative / 60% summative / 20%
-// final if the course has one, otherwise 20% formative / 80% summative.
+// final if the course has one, otherwise 25% formative / 75% summative —
+// a 25:75 formative:summative ratio either way (20:60 reduces to the same
+// proportions once the final's own independent 20% is set aside).
 // matchName defaults to the plain display name — for a divided course,
 // the caller passes the combined name instead, so this card's "Next ..."
 // line finds the right division's date while its title stays plain.
@@ -1393,6 +1395,12 @@ function linkScoreListScroll(listA, listB) {
 function addClassCard(name, hasFinal, matchName = name, hideable = true, periodIndex = null) {
   const card = document.createElement("div");
   card.className = "class-card";
+  // Identifies this card for renderDomainClasses' live diffing below.
+  // periodIndex is only ever null for the two placeholder sample cards
+  // (see initDomainPage/renderDomainClasses) — real cards always have one,
+  // even a plain (non-combo) course.
+  card.dataset.cardName = name;
+  if (periodIndex !== null) card.dataset.real = "true";
 
   // Hides this specific card — a combo course's two cards are hidden
   // independently. hideable=false for the sample placeholder cards, which
@@ -1447,8 +1455,8 @@ function addClassCard(name, hasFinal, matchName = name, hideable = true, periodI
 
   const fsRow = document.createElement("div");
   fsRow.className = "assessment-fs-row";
-  const formativesBox = createAssessmentBox("Formatives", "20%");
-  const summativesBox = createAssessmentBox("Summatives", hasFinal ? "60%" : "80%");
+  const formativesBox = createAssessmentBox("Formatives", hasFinal ? "20%" : "25%");
+  const summativesBox = createAssessmentBox("Summatives", hasFinal ? "60%" : "75%");
   fsRow.appendChild(formativesBox);
   fsRow.appendChild(summativesBox);
   // A child of .assessment-groups, not a sibling — it draws from the same
@@ -1486,6 +1494,11 @@ function addClassCard(name, hasFinal, matchName = name, hideable = true, periodI
   const baseGroupsHeight = groups.getBoundingClientRect().height;
   groups.style.flex = `0 0 ${baseGroupsHeight}px`;
   groups.dataset.baseHeight = baseGroupsHeight;
+  // Whether breakdown was actually taking up space above groups at the
+  // moment baseHeight was captured — see recalculateGroupsForBreakdown,
+  // which needs this to tell whether a later Settings toggle grew or
+  // shrank the room breakdown was leaving it.
+  groups.dataset.breakdownShownAtLock = String(document.documentElement.dataset.hideBreakdown !== "true");
 
   if (hasFinal) {
     const finalBox = createAssessmentBox("Final Exam", "20%", 1);
@@ -1503,23 +1516,48 @@ function addClassCard(name, hasFinal, matchName = name, hideable = true, periodI
 
 const CARD_HIDE_MS = 250;
 
-// Remembers name as hidden and removes the card, animated only if
-// Settings > Animations is on. Un-hidden again via the matching show
-// button in My Courses.
+// Fades a card out and removes it, animated only if Settings > Animations
+// is on — shared by the manual "hide" button (hideClassCard) and by
+// renderDomainClasses below, whenever a course disappears from My Courses
+// (cleared, renamed, or newly hidden) while Domain is already open.
+function fadeOutAndRemoveCard(card) {
+  if (!window.animationsEnabled()) {
+    card.remove();
+    return;
+  }
+  card.style.transition = `opacity ${CARD_HIDE_MS}ms ease`;
+  card.style.opacity = "0";
+  setTimeout(() => card.remove(), CARD_HIDE_MS);
+}
+
+// The reverse — fades a just-added card in, for a course that appeared
+// live while Domain is already open. Never used on the page's own first
+// render (see renderDomainClasses' animate param) — cards already there
+// when the page loads should just be there, not fade in.
+function fadeInCard(card) {
+  if (!window.animationsEnabled()) return;
+  card.style.opacity = "0";
+  void card.offsetWidth; // force reflow so the "0" above actually takes effect first
+  card.style.transition = `opacity ${CARD_HIDE_MS}ms ease`;
+  card.style.opacity = "1";
+  card.addEventListener(
+    "transitionend",
+    () => {
+      card.style.transition = "";
+      card.style.opacity = "";
+    },
+    { once: true }
+  );
+}
+
+// Remembers name as hidden and removes the card. Un-hidden again via the
+// matching show button in My Courses.
 function hideClassCard(card, name) {
   const hidden = loadHiddenCourses();
   if (!hidden.includes(name)) saveHiddenCourses([...hidden, name]);
 
   showToast(`${name} hidden. Show it again in My Courses.`);
-
-  if (!window.animationsEnabled()) {
-    card.remove();
-    return;
-  }
-
-  card.style.transition = `opacity ${CARD_HIDE_MS}ms ease`;
-  card.style.opacity = "0";
-  setTimeout(() => card.remove(), CARD_HIDE_MS);
+  fadeOutAndRemoveCard(card);
 }
 
 const FULL_WEEKDAY_NAMES = [
@@ -1554,7 +1592,12 @@ function updateNextAssessmentLine(card, name, periodIndex) {
 
     const baseHeight = parseFloat(groups.dataset.baseHeight);
 
-    const next = nearestUpcomingAnyAssessment(name, periodIndex);
+    // Settings > Show upcoming assessments off hides this line via CSS
+    // (see html[data-hide-upcoming-assessments] in style.css) — treated
+    // the same as there being nothing upcoming here too, so the card
+    // doesn't keep reserving height for a line that's not actually shown.
+    const hiddenByPreference = document.documentElement.dataset.hideUpcomingAssessments === "true";
+    const next = hiddenByPreference ? null : nearestUpcomingAnyAssessment(name, periodIndex);
     line.innerHTML = "";
     // Read once the line is confirmed empty, not from dataset.baseOffsetTop
     // (a position snapshot taken back in addClassCard, before
@@ -1604,6 +1647,165 @@ function updateNextAssessmentLine(card, name, periodIndex) {
 // Bring any cards already in the page in line with the real calculation.
 document.querySelectorAll(".class-card").forEach(recalculateCard);
 
+// The { name, hasFinal, matchName, periodIndex } for every card that
+// should currently be showing — same combo-expansion/hidden-course
+// filtering either way, shared by the page's first render and by every
+// live update after it (see renderDomainClasses).
+function visibleCourseCards() {
+  const periods = loadPeriods();
+  const divisions = loadPeriodDivisions();
+  const entries = periods
+    .map((name, index) => ({ name: (name || "").trim(), division: divisions[index] || "", periodIndex: index }))
+    .filter((entry) => entry.name !== "");
+  if (entries.length === 0) return [];
+
+  const hidden = new Set(loadHiddenCourses());
+  const cards = [];
+  // Not expandCourseNames' flat map here — that would lose each period's
+  // own index, and with it the division that goes with it.
+  entries.forEach(({ name, division, periodIndex }) => {
+    const course = findCourseCatalogEntry(name);
+    if (course && course.combo) {
+      // The division belongs to the combo course as a whole — both cards
+      // look up the same picked division's date.
+      const matchName = effectiveCourseName(name, division);
+      course.combo.forEach((sub) => {
+        if (!hidden.has(sub.name)) cards.push({ name: sub.name, hasFinal: sub.final, matchName, periodIndex });
+      });
+    } else if (!hidden.has(name)) {
+      cards.push({ name, hasFinal: course ? course.final : false, matchName: effectiveCourseName(name, division), periodIndex });
+    }
+  });
+  return cards;
+}
+
+function buildDomainEmptyState(container) {
+  // No real courses yet: show two sample cards (one with a Final Exam, one
+  // without) so the layout doesn't look empty, plus a hint card pointing
+  // to My Courses. All three disappear once a real course exists.
+  addClassCard("Course with Finals", true, undefined, false);
+  addClassCard("Course without Finals", false, undefined, false);
+
+  const hint = document.createElement("p");
+  hint.className = "domain-empty-hint";
+  // My Courses is a popup now (see auth.js/my-courses.js), not its own
+  // tab — opens it directly rather than linking to the Calendar tab.
+  const link = document.createElement("button");
+  link.type = "button";
+  link.className = "domain-empty-hint-link";
+  link.textContent = "My Courses";
+  link.addEventListener("click", () => {
+    if (typeof openMyCoursesModal === "function") openMyCoursesModal();
+  });
+  hint.append("Start by adding your", document.createElement("br"), "courses at ", link);
+  container.appendChild(hint);
+}
+
+// Rebuilds the Domain class cards to match whatever's currently in My
+// Courses — called once (unanimated) on page load, and again (animated)
+// any time a period/division/hidden-course changes while Domain is
+// already open (see my-courses.js's wireScheduleRows). Diffs against
+// what's already on screen rather than clearing and rebuilding, so an
+// unrelated card already showing never flickers: only cards that actually
+// appeared or disappeared fade in/out (see fadeInCard/fadeOutAndRemoveCard).
+function renderDomainClasses(animate) {
+  const container = document.querySelector('.classes-container[data-dynamic="true"]');
+  if (!container) return;
+
+  const desired = visibleCourseCards();
+  const allCards = Array.from(container.querySelectorAll(".class-card"));
+  const realCards = allCards.filter((card) => card.dataset.real === "true");
+  const sampleCards = allCards.filter((card) => card.dataset.real !== "true");
+  const existingByName = new Map(realCards.map((card) => [card.dataset.cardName, card]));
+  const desiredNames = new Set(desired.map((entry) => entry.name));
+
+  // A card whose course got cleared, renamed, or newly hidden fades out
+  // the same way the manual hide button does.
+  realCards.forEach((card) => {
+    if (!desiredNames.has(card.dataset.cardName)) fadeOutAndRemoveCard(card);
+  });
+
+  if (desired.length === 0) {
+    if (sampleCards.length === 0) buildDomainEmptyState(container);
+    return;
+  }
+
+  sampleCards.forEach((card) => card.remove());
+  const hint = container.querySelector(".domain-empty-hint");
+  if (hint) hint.remove();
+
+  // Walked back-to-front so each new card can be inserted right before the
+  // nearest already-positioned one after it — keeps cards in period order
+  // even when an earlier period's course is added after a later one's
+  // card already exists, instead of just appending everything at the end.
+  let anchor = null;
+  for (let i = desired.length - 1; i >= 0; i--) {
+    const entry = desired[i];
+    const existing = existingByName.get(entry.name);
+    if (existing) {
+      // Same card, but a division pick can still change which day its
+      // assessments match against.
+      updateNextAssessmentLine(existing, entry.matchName, entry.periodIndex);
+      anchor = existing;
+      continue;
+    }
+    const card = addClassCard(entry.name, entry.hasFinal, entry.matchName, true, entry.periodIndex);
+    if (anchor) container.insertBefore(card, anchor);
+    if (animate) fadeInCard(card);
+    anchor = card;
+  }
+}
+
+// Grows or shrinks .assessment-groups' own locked height budget (see
+// addClassCard) by however much room .grade-breakdown just started/stopped
+// taking above it, so Formatives/Summatives actually expand into the space
+// breakdown frees up instead of just leaving it blank (the card's own
+// min-height is a floor, not a fixed height — nothing else in the column
+// has flex-grow to absorb that space on its own). A no-op once already in
+// sync with the current preference, which is the common case.
+function recalculateGroupsForBreakdown(card) {
+  const groups = card.querySelector(".assessment-groups");
+  const breakdown = card.querySelector(".grade-breakdown");
+  if (!groups || !breakdown || !groups.dataset.baseHeight) return;
+
+  const breakdownShownNow = document.documentElement.dataset.hideBreakdown !== "true";
+  const shownAtLock = groups.dataset.breakdownShownAtLock === "true";
+  if (breakdownShownNow === shownAtLock) return;
+
+  // breakdown is a plain, self-contained line (not part of
+  // .assessment-groups' own unconstrained flex-grow chain — see
+  // addClassCard), so measuring it is safe regardless of how many scores
+  // are typed elsewhere on this card. Forced visible first if it's
+  // currently the hidden one, then immediately reverted — one synchronous
+  // reflow, no visible flash, since nothing repaints mid-script.
+  if (!breakdownShownNow) delete document.documentElement.dataset.hideBreakdown;
+  const breakdownHeight = breakdown.getBoundingClientRect().height + parseFloat(getComputedStyle(breakdown).marginBottom);
+  if (!breakdownShownNow) document.documentElement.dataset.hideBreakdown = "true";
+
+  const currentBase = parseFloat(groups.dataset.baseHeight);
+  const newBase = shownAtLock ? currentBase + breakdownHeight : currentBase - breakdownHeight;
+  groups.dataset.baseHeight = newBase;
+  groups.style.flex = `0 0 ${newBase}px`;
+  groups.dataset.breakdownShownAtLock = String(breakdownShownNow);
+}
+
+// A Settings change (breakdown/upcoming-assessments visibility, date
+// format) should be visible the instant it's made, not just on the next
+// reload. Breakdown's own line is a plain CSS toggle (see
+// html[data-hide-breakdown] in style.css); what needs an explicit push are
+// the things computed in JS and then locked in place: .assessment-groups'
+// own height budget (recalculateGroupsForBreakdown, then
+// updateNextAssessmentLine — now preference-aware — via renderDomainClasses)
+// and each already-rendered score date label (data-iso-date holds the raw
+// value; the text is only ever formatted at render time).
+window.addEventListener("app:preferences-changed", () => {
+  document.querySelectorAll(".class-card").forEach(recalculateGroupsForBreakdown);
+  renderDomainClasses(false);
+  document.querySelectorAll(".score-date-label[data-iso-date]").forEach((label) => {
+    label.textContent = formatAssessmentDate(fromISODate(label.dataset.isoDate));
+  });
+});
+
 // Domain page: build a class card for each named period, using the course
 // catalog to decide whether it gets a Final Exam box. A no-op on any
 // other page.
@@ -1624,47 +1826,9 @@ function initDomainPage() {
     }, 800);
   });
 
-  const periods = loadPeriods();
-  const divisions = loadPeriodDivisions();
-  const entries = periods
-    .map((name, index) => ({ name: (name || "").trim(), division: divisions[index] || "", periodIndex: index }))
-    .filter((entry) => entry.name !== "");
-
-  if (entries.length === 0) {
-    // No real courses yet: show two sample cards (one with a Final Exam,
-    // one without) so the layout doesn't look empty, plus a hint card
-    // pointing to My Courses. All three disappear once a real course exists.
-    addClassCard("Course with Finals", true, undefined, false);
-    addClassCard("Course without Finals", false, undefined, false);
-
-    const hint = document.createElement("p");
-    hint.className = "domain-empty-hint";
-    const link = document.createElement("a");
-    link.href = "my-courses";
-    link.textContent = "My Courses";
-    hint.append("Start by adding your", document.createElement("br"), "courses at ", link);
-    dynamicClassesContainer.appendChild(hint);
-  } else {
-    // Card display names — a combo course's two cards are hidden
-    // independently of each other.
-    const hidden = new Set(loadHiddenCourses());
-
-    // Not expandCourseNames' flat map here — that would lose each
-    // period's own index, and with it the division that goes with it.
-    entries.forEach(({ name, division, periodIndex }) => {
-      const course = findCourseCatalogEntry(name);
-      if (course && course.combo) {
-        // The division belongs to the combo course as a whole — both
-        // cards look up the same picked division's date.
-        const matchName = effectiveCourseName(name, division);
-        course.combo.forEach((sub) => {
-          if (!hidden.has(sub.name)) addClassCard(sub.name, sub.final, matchName, true, periodIndex);
-        });
-      } else if (!hidden.has(name)) {
-        addClassCard(name, course ? course.final : false, effectiveCourseName(name, division), true, periodIndex);
-      }
-    });
-  }
+  // Unanimated — cards already on screen the moment the page loads should
+  // just be there, not fade in.
+  renderDomainClasses(false);
 
   // Whatever just got built above is the actual content now — hide the
   // loading spinner in favor of it.
@@ -1826,3 +1990,66 @@ function initGradeProtectionModal() {
 }
 
 initGradeProtectionModal();
+
+// --- Admin-authored posts (see the Posts admin page) — shown below the
+// class cards, always visible to every signed-in student. A one-shot
+// fetch, not the cache-then-confirm machinery assessments-shared.js uses
+// for the calendar data — posts change rarely enough that a brief load
+// delay isn't worth that extra complexity. ---
+
+function buildDomainPostCard(post) {
+  const card = document.createElement("div");
+  card.className = "domain-post-card";
+
+  const title = document.createElement("h3");
+  title.className = "domain-post-title";
+  title.textContent = post.title;
+  card.appendChild(title);
+
+  const body = document.createElement("p");
+  body.className = "domain-post-body";
+  body.textContent = post.body;
+  card.appendChild(body);
+
+  if (post.linkUrl) {
+    const link = document.createElement("a");
+    link.className = "domain-post-link";
+    link.href = post.linkUrl;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = "Learn More →";
+    card.appendChild(link);
+  }
+
+  return card;
+}
+
+function renderDomainPosts(posts) {
+  const container = document.getElementById("domain-posts");
+  if (!container) return;
+
+  if (posts.length === 0) {
+    container.hidden = true;
+    container.innerHTML = "";
+    return;
+  }
+
+  container.innerHTML = "";
+  posts
+    .slice()
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+    .forEach((post) => container.appendChild(buildDomainPostCard(post)));
+  container.hidden = false;
+}
+
+function fetchDomainPosts() {
+  if (typeof firebase === "undefined" || !firebase.firestore) return;
+  firebase
+    .firestore()
+    .collection("posts")
+    .get()
+    .then((snapshot) => renderDomainPosts(snapshot.docs.map((doc) => doc.data())))
+    .catch((error) => console.error("Failed to load posts:", error));
+}
+
+fetchDomainPosts();
