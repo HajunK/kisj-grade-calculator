@@ -175,6 +175,10 @@ function renderAuthUI(user) {
 
     const avatar = document.createElement("img");
     avatar.className = "auth-avatar";
+    // Google's image host is known to refuse requests carrying some
+    // referrers (localhost included) — none sent, none to refuse. Set before
+    // src so the very first request already goes out without one.
+    avatar.referrerPolicy = "no-referrer";
     avatar.src = user.photoURL || TRANSPARENT_GIF;
     avatar.alt = user.displayName || user.email || "";
 

@@ -1,6 +1,7 @@
 // Site preferences: appearance (light/dark/system), date format, whether
 // the FA/SA/D breakdown line shows, whether a new Formative starts linked
-// to its Summative by default, and whether animations play at all. Loaded
+// to its Summative by default, whether animations play at all, and whether
+// scores are blurred until hovered (privacy blur: never/school/always). Loaded
 // right after firebase-config.js so cached preferences apply before the
 // rest of the page builds.
 //
@@ -16,6 +17,7 @@ const DEFAULT_PREFERENCES = {
   showUpcomingAssessments: true, // the "Upcoming ...:" line on Domain class cards
   replaceFormativesByDefault: true, // a newly-qualifying Formative starts linked to its Summative
   animationsEnabled: true,
+  privacyBlurMode: "never", // "never" | "school" | "always" — blurs Domain scores until hovered
 };
 
 const PREFS_CACHE_PREFIX = "prefs_";
@@ -82,6 +84,32 @@ function notifyPreferencesChanged() {
   window.dispatchEvent(new CustomEvent("app:preferences-changed"));
 }
 
+// Whether html[data-privacy-blur] (what style.css actually keys off) is on
+// right now: always in "always", never in "never", and in "school" only
+// while isDuringSchoolNow (assessments-shared.js) says it's inside the
+// school day — re-checked on a timer so it flips on its own as the day
+// starts/ends. A page that doesn't load that file never blurs in "school".
+let privacyBlurMode = "never";
+let privacyBlurTimer = null;
+
+function evaluatePrivacyBlur() {
+  const on =
+    privacyBlurMode === "always" ||
+    (privacyBlurMode === "school" &&
+      typeof window.isDuringSchoolNow === "function" &&
+      window.isDuringSchoolNow());
+  if (on) document.documentElement.dataset.privacyBlur = "true";
+  else delete document.documentElement.dataset.privacyBlur;
+}
+window.refreshPrivacyBlur = evaluatePrivacyBlur;
+
+function applyPrivacyBlur(mode) {
+  privacyBlurMode = mode === "school" || mode === "always" ? mode : "never";
+  clearInterval(privacyBlurTimer);
+  privacyBlurTimer = privacyBlurMode === "school" ? setInterval(evaluatePrivacyBlur, 5000) : null;
+  evaluatePrivacyBlur();
+}
+
 function applyPreferences(prefs) {
   document.documentElement.dataset.theme = resolveTheme(prefs.appearance);
   if (prefs.showBreakdown === false) {
@@ -93,6 +121,13 @@ function applyPreferences(prefs) {
     document.documentElement.dataset.hideUpcomingAssessments = "true";
   } else {
     delete document.documentElement.dataset.hideUpcomingAssessments;
+  }
+  applyPrivacyBlur(prefs.privacyBlurMode);
+  // Lets CSS-only transitions (e.g. the privacy blur) honor Animations off.
+  if (prefs.animationsEnabled === false) {
+    document.documentElement.dataset.animationsOff = "true";
+  } else {
+    delete document.documentElement.dataset.animationsOff;
   }
 }
 

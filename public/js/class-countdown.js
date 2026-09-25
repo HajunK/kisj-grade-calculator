@@ -164,6 +164,9 @@ function initClassCountdown() {
   window.addEventListener("resize", schedulePillContrastCheck);
 
   loadScheduleData(() => {
+    // Schedule data just arrived — Privacy Blur's "During School" can now
+    // be decided (see isDuringSchoolNow).
+    if (typeof window.refreshPrivacyBlur === "function") window.refreshPrivacyBlur();
     updateClassCountdown();
     // Cleared first — loadScheduleData's callback can fire twice (once
     // from cache, once from a real fetch confirming/replacing it), and a

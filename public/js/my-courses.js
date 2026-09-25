@@ -41,8 +41,50 @@ function moveToNextPeriod(input) {
 // supports keyboard use: Up/Down moves a highlighted suggestion, Enter
 // selects it — or, if nothing's been highlighted yet, the first suggestion.
 function setupCourseDropdown(input) {
-  const dropdown = input.closest(".schedule-field").querySelector(".schedule-dropdown");
+  const field = input.closest(".schedule-field");
+  const dropdown = field.querySelector(".schedule-dropdown");
   let highlightedIndex = -1;
+
+  // Moved out to <body> as a position: fixed layer — inside the popup it
+  // would be clipped by the card's own overflow/rounded edge (and a
+  // transformed ancestor makes fixed positioning relative to the card, not
+  // the screen). Any left over once the popup closes are swept up in
+  // closeMyCoursesModal.
+  dropdown.classList.add("schedule-dropdown--floating");
+  document.body.appendChild(dropdown);
+
+  // Sits under the field, or above it when there's more room there, and
+  // shrinks to whatever fits so it never runs off the screen.
+  const SCREEN_MARGIN = 8;
+  const FIELD_GAP = 8;
+  function positionDropdown() {
+    if (!dropdown.isConnected || !field.isConnected) {
+      window.removeEventListener("resize", positionDropdown);
+      window.removeEventListener("scroll", positionDropdown, true);
+      return;
+    }
+    if (dropdown.childElementCount === 0) return;
+
+    const rect = field.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom - FIELD_GAP - SCREEN_MARGIN;
+    const spaceAbove = rect.top - FIELD_GAP - SCREEN_MARGIN;
+    const wanted = Math.min(240, dropdown.scrollHeight);
+    const openBelow = spaceBelow >= wanted || spaceBelow >= spaceAbove;
+
+    dropdown.style.maxHeight = `${Math.max(80, Math.min(240, openBelow ? spaceBelow : spaceAbove))}px`;
+    const width = Math.min(rect.width, window.innerWidth - SCREEN_MARGIN * 2);
+    dropdown.style.width = `${width}px`;
+    dropdown.style.left = `${Math.max(SCREEN_MARGIN, Math.min(rect.left, window.innerWidth - width - SCREEN_MARGIN))}px`;
+    if (openBelow) {
+      dropdown.style.top = `${rect.bottom + FIELD_GAP}px`;
+      dropdown.style.bottom = "auto";
+    } else {
+      dropdown.style.bottom = `${window.innerHeight - rect.top + FIELD_GAP}px`;
+      dropdown.style.top = "auto";
+    }
+  }
+  window.addEventListener("resize", positionDropdown);
+  window.addEventListener("scroll", positionDropdown, true);
 
   function items() {
     return Array.from(dropdown.querySelectorAll(".schedule-dropdown-item"));
@@ -84,6 +126,7 @@ function setupCourseDropdown(input) {
         });
         dropdown.appendChild(item);
       });
+    positionDropdown();
   }
 
   input.addEventListener("input", renderMatches);
@@ -139,15 +182,14 @@ function setupCourseDropdown(input) {
 
 // --- Assessment calendar ---
 // Read-only, Google Calendar-style grid showing which days have an
-// assessment for any of the student's own 8 selected courses. Weekends are
-// skipped, freeing up width for 5 wider weekday columns instead of 7.
-// Builds the current week plus the following 3. Rebuilt once the
+// assessment for any of the student's own 8 selected courses, Sunday
+// through Saturday. Builds the current week plus the following 3. Rebuilt once the
 // assessments collection loads, and whenever a period is typed/cleared.
 
 const ASSESSMENT_CALENDAR_WEEK_COUNT = 4;
-const ASSESSMENT_CALENDAR_WEEKDAYS_PER_WEEK = 5;
+const ASSESSMENT_CALENDAR_WEEKDAYS_PER_WEEK = 7;
 
-const CAL_WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const CAL_WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 // The { name, periodIndex } pairs actually used to match this student's
 // assessments, plus which base names are unambiguous. A divided course with
@@ -193,36 +235,23 @@ function stripDivisionSuffix(courseName) {
   return courseName.replace(/ \([^)]*\)$/, "");
 }
 
-// The Monday that starts the (Mon-Fri) week containing `date`.
+// The Sunday that starts the (Sun-Sat) week containing `date`.
 function startOfWeek(date) {
-  const day = date.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
-  const diffToMonday = day === 0 ? -6 : 1 - day; // a Sunday belongs to the week starting the day before
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + diffToMonday);
-}
-
-// Same as startOfWeek, except on a Sat/Sun it jumps ahead to the upcoming
-// Monday instead — this week's own Mon-Fri are all already in the past by
-// then, so the calendar's first row should open on the next weekday
-// instead of a row of days that have already happened.
-function firstVisibleWeekStart(date) {
-  const day = date.getDay(); // 0 = Sun, 6 = Sat
-  if (day === 0) return new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
-  if (day === 6) return new Date(date.getFullYear(), date.getMonth(), date.getDate() + 2);
-  return startOfWeek(date);
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() - date.getDay());
 }
 
 function buildAssessmentPill(entry, resolvedNames, previousPillIds, addedIds, onContextMenu) {
   const pill = document.createElement("span");
   const isRemovable = addedIds.has(entry.id);
   const isTestingBlock = entry.type === "Testing Block";
-  // In-Class, Testing Block, and a self-added Summative (see "Add Missing
-  // Assessment") share the summative color; a custom "Other" label or a
-  // self-added Formative reuses the formative color.
-  const isKnownType = entry.type === "In-Class" || entry.type === "Summative" || isTestingBlock;
+  // In-Class and a self-added Summative are both "S" (other in-class
+  // summatives); anything else — a self-added Formative, or a custom
+  // "Other" label — is "F". Testing Blocks are "TB".
+  const isSummative = entry.type === "In-Class" || entry.type === "Summative";
+  const kind = isTestingBlock ? "tb" : isSummative ? "s" : "f";
   // A plain assignment, not classList.add — must come before every
   // classList.add call below, or it wipes them out.
-  pill.className = `assessment-pill assessment-pill--${isKnownType ? "summative" : "formative"}`;
-  if (isTestingBlock) pill.classList.add("assessment-pill--block");
+  pill.className = `assessment-chip assessment-chip--${kind}`;
   // Starts at opacity: 0 — render() reflows once the whole grid is built,
   // then sets it back to 1, so it dims in. Only for a pill that genuinely
   // wasn't showing on the last render (previousPillIds is null when
@@ -230,6 +259,14 @@ function buildAssessmentPill(entry, resolvedNames, previousPillIds, addedIds, on
   // an unrelated keystroke elsewhere, so this stops already-visible
   // labels from re-fading.
   if (previousPillIds && !previousPillIds.has(entry.id)) pill.classList.add("assessment-pill--fade-in");
+
+  // The colored circle carrying the type's letters.
+  const badge = document.createElement("span");
+  badge.className = "assessment-chip-badge";
+  badge.textContent = { tb: "TB", s: "S", f: "F" }[kind];
+  badge.title = isTestingBlock ? "Testing Block" : isSummative ? "Summative" : "Formative";
+  pill.appendChild(badge);
+
   // Drop the "(division)" suffix once the student's picked division makes
   // it unambiguous.
   const strippedName = stripDivisionSuffix(entry.courseName);
@@ -241,20 +278,12 @@ function buildAssessmentPill(entry, resolvedNames, previousPillIds, addedIds, on
   nameEl.className = "assessment-pill-name";
   const nameText = document.createElement("span");
   nameText.className = "assessment-pill-text";
-  nameText.textContent = isKnownType ? label : `${label} ${entry.type}`;
+  // A custom label (neither S/TB nor a plain Formative) has no letter of
+  // its own to say what it is, so its type text stays in the name.
+  const isCustomType = kind === "f" && entry.type !== "Formative";
+  nameText.textContent = isCustomType ? `${label} ${entry.type}` : label;
   nameEl.appendChild(nameText);
   pill.appendChild(nameEl);
-  // A second, muted line under the course name — the only thing telling
-  // In-Class and Testing Block apart besides the rectangle shape.
-  if (isTestingBlock) {
-    const testingLabel = document.createElement("span");
-    testingLabel.className = "assessment-pill-testing-label";
-    const testingText = document.createElement("span");
-    testingText.className = "assessment-pill-text";
-    testingText.textContent = "Testing Block";
-    testingLabel.appendChild(testingText);
-    pill.appendChild(testingLabel);
-  }
   if (isRemovable) {
     pill.classList.add("assessment-pill--removable");
     // Only after a real lingering hover, not the instant the cursor
@@ -316,12 +345,36 @@ function hideRemoveHint() {
   if (removeHintEl) removeHintEl.classList.remove("assessment-pill-remove-hint--visible");
 }
 
-function buildDayCell(weeksContainer, date, entriesByDate, resolvedNames, previousPillIds, addedIds, onContextMenu) {
+const CAL_MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// weekdayLabel is only passed for the top row, where each cell carries its
+// column's weekday name above its date (there's no separate header row).
+function buildDayCell(weeksContainer, date, entriesByDate, resolvedNames, previousPillIds, addedIds, onContextMenu, weekdayLabel = null) {
   const iso = toISODate(date);
   const today = new Date();
 
   const cell = document.createElement("div");
   cell.className = "assessment-week-day";
+  if (date.getDay() === 0 || date.getDay() === 6) cell.classList.add("assessment-week-day--weekend");
+
+  if (weekdayLabel) {
+    cell.classList.add("assessment-week-day--first-row");
+    const weekday = document.createElement("span");
+    weekday.className = "assessment-week-day-weekday";
+    weekday.textContent = weekdayLabel;
+    cell.appendChild(weekday);
+  }
+
+  // The 1st of a month also gets the month ("Dec"), to the left of the date
+  // — which itself stays centered over the column like every other day's.
+  const head = document.createElement("div");
+  head.className = "assessment-week-day-head";
+  if (date.getDate() === 1) {
+    const month = document.createElement("span");
+    month.className = "assessment-week-day-month";
+    month.textContent = CAL_MONTH_SHORT[date.getMonth()];
+    head.appendChild(month);
+  }
 
   const dayNumber = document.createElement("span");
   dayNumber.className = "assessment-week-day-number";
@@ -329,7 +382,8 @@ function buildDayCell(weeksContainer, date, entriesByDate, resolvedNames, previo
   if (date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth() && date.getDate() === today.getDate()) {
     dayNumber.classList.add("assessment-week-day-number--today");
   }
-  cell.appendChild(dayNumber);
+  head.appendChild(dayNumber);
+  cell.appendChild(head);
 
   // Testing blocks always lead the list — a stable sort, so entries
   // without one keep their original relative order.
@@ -373,7 +427,7 @@ function buildDayCell(weeksContainer, date, entriesByDate, resolvedNames, previo
   weeksContainer.appendChild(cell);
 }
 
-// Builds the weekday header + wires the render; returns a render()
+// Wires the render; returns a render()
 // function so callers elsewhere (e.g. a period being typed) can trigger a
 // refresh. A no-op (returns null) on any page without the calendar markup.
 function initAssessmentCalendar() {
@@ -381,7 +435,6 @@ function initAssessmentCalendar() {
   const weeksContainer = document.getElementById("assessment-cal-weeks");
   if (!weeksContainer) return null;
 
-  const weekdayRow = document.getElementById("assessment-cal-weekdays");
   const loadingEl = document.getElementById("assessment-cal-loading");
 
   // Which assessment ids were on screen after the last render — compared
@@ -418,12 +471,6 @@ function initAssessmentCalendar() {
     hideRemoveHint();
     fadeOutPill(pillEl, () => deleteAddedAssessment(entry.id));
   }
-
-  CAL_WEEKDAY_LABELS.forEach((day) => {
-    const span = document.createElement("span");
-    span.textContent = day;
-    weekdayRow.appendChild(span);
-  });
 
   const CALENDAR_REVEAL_MS = 300;
 
@@ -519,7 +566,7 @@ function initAssessmentCalendar() {
     calendarSettled = true;
 
     weeksContainer.innerHTML = "";
-    const thisWeekStart = firstVisibleWeekStart(new Date());
+    const thisWeekStart = startOfWeek(new Date());
     for (let weekIndex = 0; weekIndex < ASSESSMENT_CALENDAR_WEEK_COUNT; weekIndex++) {
       for (let dayIndex = 0; dayIndex < ASSESSMENT_CALENDAR_WEEKDAYS_PER_WEEK; dayIndex++) {
         const date = new Date(
@@ -534,7 +581,8 @@ function initAssessmentCalendar() {
           resolvedNames,
           previousPillIdsForThisRender,
           currentAddedIds,
-          handlePillContextMenu
+          handlePillContextMenu,
+          weekIndex === 0 ? CAL_WEEKDAY_LABELS[dayIndex] : null
         );
       }
     }
@@ -545,7 +593,6 @@ function initAssessmentCalendar() {
     // runs. Done before the pill fade-in below, since a pill inside a
     // still-hidden grid can't visibly transition.
     loadingEl.hidden = true;
-    weekdayRow.hidden = false;
     weeksContainer.hidden = false;
 
     if (previousPillIdsForThisRender) {
@@ -1321,6 +1368,9 @@ function closeMyCoursesModal() {
   const closingOverlay = myCoursesModalOverlay;
   const card = closingOverlay.querySelector(".settings-modal-card");
   myCoursesModalOverlay = null;
+  // Course-suggestion lists live on <body> while the popup is open (see
+  // setupCourseDropdown).
+  document.querySelectorAll("body > .schedule-dropdown--floating").forEach((el) => el.remove());
   if (!window.animationsEnabled()) {
     closingOverlay.remove();
     return;

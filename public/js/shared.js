@@ -27,8 +27,11 @@ function themeFolder() {
   return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
 }
 
+// Letter-only PNGs (white, transparent) — the colored circle behind each is
+// drawn in CSS from the img's data-slug (see img[data-slug] in style.css),
+// which is what makes them theme-aware, not separate light/dark files.
 function gradeIconPath(slug) {
-  return `grade-icons/${themeFolder()}/${slug}.png`;
+  return `grade-icons/${slug}.png`;
 }
 
 // The other theme-aware icon folder — link/unlink, date, hide/show, etc.
@@ -36,8 +39,9 @@ function uiIconPath(name) {
   return `icons/${themeFolder()}/${name}`;
 }
 
-// Repaints every currently-rendered letter-grade icon in its new theme's
-// folder, without recalculating any grades.
+// Kept so a theme switch still has one place to refresh every letter-grade
+// icon from — though the letter PNGs themselves no longer differ by theme
+// (only their CSS background does, which updates on its own).
 window.refreshGradeIcons = function refreshGradeIcons() {
   document.querySelectorAll(".letter-grade[data-slug]").forEach((img) => {
     img.src = gradeIconPath(img.dataset.slug);
@@ -134,7 +138,9 @@ function animateNumberChange(element, newText, revealStyle) {
     return;
   }
 
-  if (revealStyle === "blur" && oldText === "-") {
+  // "--" is the big Domain grade's own empty placeholder (see
+  // updateDomainBadge); "-" is every other number's.
+  if (revealStyle === "blur" && (oldText === "-" || oldText === "--")) {
     element.dataset.rollValue = newText;
     element.textContent = newText;
     // Paired with a slight opacity fade — blur alone reads flatter, this

@@ -255,6 +255,37 @@ const SCHEDULE_BLOCKS = [
   { type: "class", slot: 3, label: "Period 4/8" },
 ];
 
+// Whether right now falls inside today's school day — from the first
+// class's start to the last class's end (per the Bell Schedule), passing
+// time and lunch included, and only on an A/B day of the school calendar.
+// Used by Settings > Privacy Blur > "During School".
+function isDuringSchoolNow() {
+  const now = new Date();
+  const dayType = allDayTypes[toISODate(now)];
+  if (dayType !== "A" && dayType !== "B") return false;
+
+  const times = defaultPeriodTimes && defaultPeriodTimes.times;
+  if (!times) return false;
+
+  const toMinutes = (hhmm) => {
+    const [hours, minutes] = hhmm.split(":").map(Number);
+    return hours * 60 + minutes;
+  };
+  let first = null;
+  let last = null;
+  times.forEach((time) => {
+    if (!time || !time.start || !time.end) return;
+    const start = toMinutes(time.start);
+    const end = toMinutes(time.end);
+    if (first === null || start < first) first = start;
+    if (last === null || end > last) last = end;
+  });
+  if (first === null) return false;
+
+  const nowMinutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+  return nowMinutes >= first && nowMinutes < last;
+}
+
 // Every assessment for one course, earliest first.
 function assessmentsForCourse(courseName, periodIndex) {
   return allAssessments
@@ -289,7 +320,22 @@ function nearestUpcomingAssessment(courseName, type, periodIndex) {
 // none. Used by Domain's single concise "Next ...: ..." line below FA/SA/D.
 function nearestUpcomingAnyAssessment(courseName, periodIndex) {
   const today = todayISODate();
-  return assessmentsForCourse(courseName, periodIndex).find((entry) => entry.date >= today) || null;
+  const schoolWide = assessmentsForCourse(courseName, periodIndex).find((entry) => entry.date >= today) || null;
+
+  // Assessments this student added themselves (see "Add Missing
+  // Assessment" on the Calendar tab) count too. Not on every page that
+  // loads this file, hence the typeof guard. On a tie the school-wide
+  // entry wins — it's the real one.
+  const own =
+    typeof loadAddedAssessments === "function"
+      ? loadAddedAssessments()
+          .filter((entry) => entry.courseName === courseName && entry.date >= today)
+          .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))[0] || null
+      : null;
+
+  if (!own) return schoolWide;
+  if (!schoolWide) return own;
+  return own.date < schoolWide.date ? own : schoolWide;
 }
 
 fetchAssessments();

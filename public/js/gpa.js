@@ -140,6 +140,7 @@ function renderGpaDropdownOptions(dropdown, showLowerTiers, onSelect, onToggle) 
 
     const img = document.createElement("img");
     img.src = gradeIconPath(tier.slug);
+    img.dataset.slug = tier.slug;
     img.alt = tier.label;
     optionBtn.appendChild(img);
 

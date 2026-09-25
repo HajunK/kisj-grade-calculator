@@ -53,24 +53,21 @@
     <a class="tab tab--admin-only" href="posts">Posts</a>
     <div class="auth-container"></div>
   </nav>
-  <div class="page-content page-content--flush-bottom">
+  <div class="page-content page-content--flush-bottom page-content--fill">
     <!-- Hidden by default and only revealed once at least one period has
          a course typed in — nothing to show a calendar for otherwise. -->
-    <div class="assessment-calendar-card my-courses-calendar-card" id="my-courses-calendar-card" hidden>
-      <div class="my-courses-calendar-header">
-        <h2 class="assessment-calendar-title">Upcoming Assessments</h2>
-        <button type="button" class="add-assessment-trigger-btn" id="add-assessment-trigger-btn">
-          + Add Missing Assessment
-        </button>
+    <div class="my-courses-calendar" id="my-courses-calendar-card" hidden>
+      <!-- The white box is just the grid, edge to edge — the weekday names
+           live inside the first row's own cells (see buildDayCell). -->
+      <div class="my-courses-calendar-box">
+        <!-- Shown until the assessments collection actually loads — the
+             calendar stays hidden until then, rather than showing an
+             empty grid first. -->
+        <div class="assessment-calendar-loading" id="assessment-cal-loading">
+          <span class="assessment-calendar-spinner"></span>
+        </div>
+        <div class="assessment-calendar-weeks" id="assessment-cal-weeks" hidden></div>
       </div>
-      <!-- Shown until the assessments collection actually loads — the
-           calendar stays hidden until then, rather than showing an
-           empty grid first. -->
-      <div class="assessment-calendar-loading" id="assessment-cal-loading">
-        <span class="assessment-calendar-spinner"></span>
-      </div>
-      <div class="assessment-calendar-weekday-row assessment-calendar-weekday-row--5col" id="assessment-cal-weekdays" hidden></div>
-      <div class="assessment-calendar-weeks" id="assessment-cal-weeks" hidden></div>
     </div>
   </div>
 

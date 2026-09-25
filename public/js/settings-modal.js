@@ -379,6 +379,15 @@ function openSettingsModal() {
         </div>
       </div>
 
+      <div class="settings-row">
+        <span class="settings-label">Privacy Blur</span>
+        <div class="segmented-control" data-pref="privacyBlurMode">
+          <button type="button" class="segmented-option" data-value="never">Never</button>
+          <button type="button" class="segmented-option" data-value="school">During School</button>
+          <button type="button" class="segmented-option" data-value="always">Always</button>
+        </div>
+      </div>
+
       <div class="settings-divider"></div>
 
       <div class="settings-row">

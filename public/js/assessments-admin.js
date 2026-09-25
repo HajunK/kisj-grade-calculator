@@ -690,15 +690,23 @@ function renderAdminCalendar() {
     dayBtn.appendChild(dayNumber);
     dayBtn.appendChild(buildDayTypeLabel(iso));
 
-    // One dot per assessment scheduled that day.
+    // One dot per assessment scheduled that day — except every 5 are shown
+    // as a single square instead (like a tally), so a busy day's row of
+    // marks never grows wider than its cell.
     if (entriesByDate[iso] && entriesByDate[iso].length > 0) {
       const dots = document.createElement("div");
       dots.className = "assessment-calendar-day-dots";
-      entriesByDate[iso].forEach(() => {
+      const count = entriesByDate[iso].length;
+      for (let i = 0; i < Math.floor(count / 5); i++) {
+        const square = document.createElement("span");
+        square.className = "assessment-calendar-day-dot assessment-calendar-day-dot--five";
+        dots.appendChild(square);
+      }
+      for (let i = 0; i < count % 5; i++) {
         const dot = document.createElement("span");
         dot.className = "assessment-calendar-day-dot";
         dots.appendChild(dot);
-      });
+      }
       dayBtn.appendChild(dots);
     }
     if (adminSelectedDate === iso) dayBtn.classList.add("assessment-calendar-day--selected");

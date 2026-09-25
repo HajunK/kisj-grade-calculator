@@ -321,7 +321,94 @@ function syncFormativeReplacementForRow(card, changedInput) {
     delete formativeInput.dataset.unlinked;
   }
 
+  const formativeBefore = formativeInput.value;
+  const formativeIcon = formativeInput.parentElement.querySelector(".letter-grade");
+  const iconSrcBefore = formativeIcon ? formativeIcon.src : "";
   applyFormativeReplacement(card, formativeInput, summativeInput, label === "Formatives");
+  // A Summative just changed what this row's Formative shows. Under Privacy
+  // Blur that means letting it be seen (see revealScoreRowBriefly);
+  // otherwise, rolling the number from its old value to the new one.
+  if (label === "Summatives" && formativeInput.value !== formativeBefore) {
+    if (document.documentElement.dataset.privacyBlur === "true") {
+      revealScoreRowBriefly(formativeInput.closest("li"));
+    } else {
+      rollScoreInput(formativeInput, formativeBefore, formativeInput.value);
+      dissolveScoreIcon(formativeIcon, iconSrcBefore);
+    }
+  }
+}
+
+// Same dissolve as the big domain badge's tier change (see
+// crossfadeBadgeIcon), for a score row's small letter-grade icon: a copy of
+// the old icon is laid over the (already updated) real one and fades out.
+function dissolveScoreIcon(icon, oldSrc) {
+  const row = icon && icon.closest("li");
+  if (!row || !oldSrc || icon.src === oldSrc || !window.animationsEnabled()) return;
+
+  const iconRect = icon.getBoundingClientRect();
+  const rowRect = row.getBoundingClientRect();
+  const ghost = icon.cloneNode();
+  ghost.removeAttribute("id");
+  ghost.src = oldSrc;
+  ghost.style.cssText =
+    `position:absolute; pointer-events:none; margin:0; left:${iconRect.left - rowRect.left}px; ` +
+    `top:${iconRect.top - rowRect.top}px; width:${iconRect.width}px; height:${iconRect.height}px; ` +
+    `opacity:1; transition:opacity ${DOMAIN_BADGE_FADE_MS}ms ease;`;
+  row.appendChild(ghost);
+  void ghost.offsetWidth; // force reflow so the fade below actually transitions
+  ghost.style.opacity = "0";
+  setTimeout(() => ghost.remove(), DOMAIN_BADGE_FADE_MS + 60);
+}
+
+// Plays animateNumberChange's digit roll on a score <input> — which can't
+// hold the roll itself (it only ever shows plain text), so a matching span
+// is laid over it for the duration while the input's own text is hidden.
+function rollScoreInput(input, oldText, newText) {
+  const row = input.closest("li");
+  if (!row || !window.animationsEnabled()) return;
+
+  if (input._rollOverlay) input._rollOverlay.remove();
+  clearTimeout(input._rollOverlayTimer);
+
+  const inputRect = input.getBoundingClientRect();
+  const rowRect = row.getBoundingClientRect();
+  const style = getComputedStyle(input);
+  const slotHeight = Math.ceil(parseFloat(style.fontSize) * 1.2); // same as animateNumberChange's own
+
+  const overlay = document.createElement("span");
+  overlay.textContent = oldText;
+  overlay.style.cssText = `position:absolute; pointer-events:none; white-space:nowrap; font:${style.font}; color:${style.color};` +
+    `left:${inputRect.left - rowRect.left}px; top:${inputRect.top - rowRect.top + (inputRect.height - slotHeight) / 2}px;`;
+  row.appendChild(overlay);
+  input._rollOverlay = overlay;
+
+  const originalColor = input.style.color;
+  input.style.color = "transparent";
+  animateNumberChange(overlay, newText);
+
+  input._rollOverlayTimer = setTimeout(() => {
+    overlay.remove();
+    input._rollOverlay = null;
+    input.style.color = originalColor;
+  }, ROLL_DURATION_MS + ROLL_STAGGER_MS * newText.length + 100);
+}
+
+// Privacy Blur: unblurs one score row's numbers (see [data-reveal-score] in
+// style.css) for half a second, then lets it blur again.
+const scoreRevealTimers = new WeakMap();
+const SCORE_ROW_REVEAL_MS = 500;
+
+function revealScoreRowBriefly(row) {
+  if (!row) return;
+  clearTimeout(scoreRevealTimers.get(row));
+  row.dataset.revealScore = "true";
+  scoreRevealTimers.set(
+    row,
+    setTimeout(() => {
+      delete row.dataset.revealScore;
+      scoreRevealTimers.delete(row);
+    }, SCORE_ROW_REVEAL_MS)
+  );
 }
 
 // Shows an icon between the two boxes, vertically aligned with a row that
@@ -428,10 +515,23 @@ function firstRevealStyle(card) {
   return card.dataset.settled === "true" ? "blur" : "instant";
 }
 
-function setBreakdownValue(card, index, value) {
+function setBreakdownValue(card, index, value, revealStyle = firstRevealStyle(card)) {
   const span = card.querySelectorAll(".breakdown-value")[index];
   if (!span) return;
-  animateNumberChange(span, value === null ? "-" : truncateToTwoDecimals(value), firstRevealStyle(card));
+  animateNumberChange(span, value === null ? "-" : truncateToTwoDecimals(value), revealStyle);
+}
+
+function setBreakdownState(card, state) {
+  const breakdown = card.querySelector(".grade-breakdown");
+  if (!breakdown || breakdown.dataset.state === state) return false;
+  const instant = card.dataset.settled !== "true" || !window.animationsEnabled();
+  if (instant) breakdown.classList.add("grade-breakdown--instant");
+  breakdown.dataset.state = state;
+  if (instant) {
+    void breakdown.offsetWidth; // commit the swap with transitions off before turning them back on
+    breakdown.classList.remove("grade-breakdown--instant");
+  }
+  return true;
 }
 
 // Pending crossfade-completion timeouts, keyed by fade layer — cleared on
@@ -471,6 +571,7 @@ function crossfadeBadgeIcon(wrap, badge, tier) {
   // Set while still invisible (opacity: 0 is the fade layer's resting
   // state) so the new icon never flashes in before the transition below.
   fadeLayer.src = gradeIconPath(tier.slug);
+  fadeLayer.dataset.slug = tier.slug; // its CSS circle color follows this
   fadeLayer.alt = tier.label;
   fadeLayer.style.opacity = "1";
 
@@ -495,11 +596,13 @@ function updateDomainBadge(card, domain) {
   if (domain === null) {
     if (wrap) wrap.remove();
     // Goes through animateNumberChange (not a direct textContent set) so
-    // its roll-memory (dataset.rollValue) actually updates to "-" — set
+    // its roll-memory (dataset.rollValue) actually updates to "--" — set
     // directly, the next real score would roll from whatever the last
     // valid score was instead of growing in fresh, since that's the last
     // value the animation would remember.
-    animateNumberChange(gradeValueEl, "-", firstRevealStyle(card));
+    // Marks it as a placeholder so Privacy Blur leaves it alone.
+    gradeValueEl.dataset.empty = "true";
+    animateNumberChange(gradeValueEl, "--", firstRevealStyle(card));
     return;
   }
 
@@ -529,6 +632,7 @@ function updateDomainBadge(card, domain) {
     crossfadeBadgeIcon(wrap, badge, tier);
   }
 
+  delete gradeValueEl.dataset.empty;
   animateNumberChange(gradeValueEl, String(rounded), firstRevealStyle(card));
 }
 
@@ -558,9 +662,20 @@ function recalculateCard(card) {
 
   const domain = weightTotal > 0 ? weightedSum / weightTotal : null;
 
-  setBreakdownValue(card, 0, faAverage);
-  setBreakdownValue(card, 1, saAverage);
-  setBreakdownValue(card, 2, domain);
+  // With nothing scored anywhere, the numbers stay as they were, hidden
+  // behind "No grades yet" — rolling them to "-" would just flash while
+  // that layer fades out.
+  if (domain === null) {
+    setBreakdownState(card, "empty");
+  } else {
+    // The values layer itself fades in from blur when leaving "No grades
+    // yet", so the numbers just appear rather than also blurring in.
+    const leavingEmpty = setBreakdownState(card, "values");
+    const style = leavingEmpty ? "instant" : undefined;
+    setBreakdownValue(card, 0, faAverage, style);
+    setBreakdownValue(card, 1, saAverage, style);
+    setBreakdownValue(card, 2, domain, style);
+  }
   updateDomainBadge(card, domain);
   saveDomainSnapshot();
   persistCardScores(card);
@@ -1003,6 +1118,32 @@ document.addEventListener(
   true
 );
 
+// Privacy Blur: after committing a score with Enter, the card's big domain
+// score stays unblurred (see [data-reveal-domain] in style.css) until its
+// number roll finishes plus a further 0.2s, so the change can actually be
+// seen before it blurs again. The blur handler above has already
+// recalculated by the time this runs, so the roll is already under way.
+const domainRevealTimers = new WeakMap();
+const DOMAIN_REVEAL_LINGER_MS = 200;
+
+function revealDomainScoreBriefly(card) {
+  const gradeValue = card.querySelector(".grade-value");
+  const rolling = window.animationsEnabled() && gradeValue;
+  const digits = gradeValue ? (gradeValue.dataset.rollValue || gradeValue.textContent).length : 0;
+  // Same total as animateNumberChange's own cleanup timer (see shared.js).
+  const rollMs = rolling ? ROLL_DURATION_MS + ROLL_STAGGER_MS * digits + 50 : 0;
+
+  clearTimeout(domainRevealTimers.get(card));
+  card.dataset.revealDomain = "true";
+  domainRevealTimers.set(
+    card,
+    setTimeout(() => {
+      delete card.dataset.revealDomain;
+      domainRevealTimers.delete(card);
+    }, rollMs + DOMAIN_REVEAL_LINGER_MS)
+  );
+}
+
 // Tab moves straight to the next row's score in the same box. Without
 // this, native Tab order would land on this row's own date button next,
 // not the next score.
@@ -1024,7 +1165,9 @@ document.addEventListener("keydown", (event) => {
   // fully typed.
   if (event.key === "Enter" || event.key === "Escape") {
     event.preventDefault();
+    const card = event.target.closest(".class-card");
     event.target.blur();
+    if (event.key === "Enter" && card) revealDomainScoreBriefly(card);
     return;
   }
 
@@ -1428,13 +1571,23 @@ function addClassCard(name, hasFinal, matchName = name, hideable = true, periodI
 
   const gradeValue = document.createElement("span");
   gradeValue.className = "grade-value";
-  gradeValue.textContent = "-";
+  gradeValue.textContent = "--";
+  gradeValue.dataset.empty = "true";
 
   summary.appendChild(gradeValue);
 
   const breakdown = document.createElement("p");
   breakdown.className = "grade-breakdown";
-  breakdown.append(
+  // Two layers stacked in the same grid cell — "No grades yet" until a
+  // score exists, then the FA/SA/D line; see setBreakdownState.
+  breakdown.dataset.state = "empty";
+  const breakdownEmpty = Object.assign(document.createElement("span"), {
+    className: "breakdown-empty",
+    textContent: "No grades yet",
+  });
+  const breakdownValues = document.createElement("span");
+  breakdownValues.className = "breakdown-values";
+  breakdownValues.append(
     "FA ",
     Object.assign(document.createElement("span"), { className: "breakdown-value", textContent: "-" }),
     " ",
@@ -1446,6 +1599,7 @@ function addClassCard(name, hasFinal, matchName = name, hideable = true, periodI
     " D ",
     Object.assign(document.createElement("span"), { className: "breakdown-value", textContent: "-" })
   );
+  breakdown.append(breakdownEmpty, breakdownValues);
 
   const nextAssessmentLine = document.createElement("p");
   nextAssessmentLine.className = "next-assessment-line";
@@ -1886,13 +2040,13 @@ function initGradeProtectionModal() {
         <h3 class="grade-protection-section-title">Creating Your Account</h3>
         <p class="grade-protection-section-text">
           When you create an account, your browser generates a unique, random
-          <strong>encryption key</strong> — a secret code that tells your browser how to scramble and
+          <strong>login key</strong>—a secret code that tells your browser how to scramble and
           unscramble your data so no one else can read it.
         </p>
 
         <h3 class="grade-protection-section-title">Storing the Key</h3>
         <p class="grade-protection-section-text">
-          Your encryption key is only saved on your device. You can find it in Settings → Login Keys.
+          Your encryption key is only saved on your device. You can find it in Profile → Login Keys.
         </p>
 
         <div class="grade-protection-compare">
@@ -1931,6 +2085,7 @@ function initGradeProtectionModal() {
       const badge = document.createElement("img");
       badge.className = "letter-grade";
       badge.src = gradeIconPath(slug);
+      badge.dataset.slug = slug;
       badge.alt = label;
       const scoreEl = document.createElement("span");
       scoreEl.textContent = score;

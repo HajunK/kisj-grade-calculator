@@ -1,19 +1,3 @@
-/* Turns the corners of the big white panels floating on the page's gray
-   background into a squircle (a superellipse curve) instead of a plain
-   circular arc — Apple's own "continuous corner" look. Only the panel
-   cards get corner-shape: squircle, declared alongside their own
-   border-radius further down. Deliberately NOT used on pill-shaped UI
-   (buttons, badges, toggles, border-radius: 999px) — tried once, reverted:
-   at a full pill radius (half the box height) Chromium's squircle/
-   superellipse curve reads as visibly squared-off rather than smoother,
-   since there's no straight middle section left for it to blend into
-   gently the way there is on a lightly-rounded card corner. Chromium-only
-   for now; degrades safely to plain rounded corners elsewhere. */
-
-/* A squircle reads as less round than a circular arc at the same radius,
-   so each panel's border-radius is wrapped in
-   calc(<value> * var(--squircle-scale)) — edit this one number to retune
-   everywhere at once. */
 :root {
   --squircle-scale: 1;
 }
@@ -35,11 +19,11 @@
   --fw-assessment-label: 500;  /* "Formatives" / "Summatives" / "Final Exam" box titles */
 
   /* Core palette — change these to build a new color theme */
-  --color-background: #e3e3e3;    /* page background */
+  --color-background: #e8ebf1;    /* page background */
   --color-surface: #ffffff;       /* card / dropdown backgrounds */
   --color-text-primary: #111111;  /* main text on surfaces */
   --color-gray-dark: #828282;     /* muted text: icon fill, breakdown text, category percentage, tab text on the page background */
-  --color-gray-light: #ababab;    /* dividers, assessment box borders */
+  --color-gray-light: #c3c9d6;    /* dividers, assessment box borders */
   --color-gray-lighter: #eeeeee;  /* subtle background highlight, e.g. a selected/hovered My Courses field */
 
   /* Accent (dropdown hover, focus outlines) */
@@ -49,17 +33,40 @@
 
   /* Tab bar accent (active tab) */
   --color-tab-accent: #3a3a3a;
-  --color-tab-accent-soft: #dcdcdc;
+  --color-tab-accent-soft: #dde0e0;
   --color-tab-accent-strong: #2b2b2b;
 
   /* Misc */
   --color-divider-on-background: rgba(0, 0, 0, 0.15); /* tab-bar bottom border */
   --color-scrollbar-thumb: rgba(0, 0, 0, 0.3);
   --color-shadow: rgba(149, 157, 165, 0.3);         /* cards */
+  /* Kept faint on purpose: a hairline-tight contact shadow plus one small
+     soft one with negative spread, so it hugs the card's underside instead
+     of blooming into a big blur around it. Slate-tinted to sit on the
+     bluish page background. theme.css turns it off in dark mode. */
+  --shadow-card:
+    0 1px 2px rgba(30, 41, 59, 0.07),
+    0 6px 14px -4px rgba(30, 41, 59, 0.10);
   --color-shadow-popover: rgba(149, 157, 165, 0.3); /* dropdowns/calendar — floating above other content, so kept even in dark mode; see theme.css */
   --color-focus-highlight: rgba(0, 41, 107, 0.08);
   --preview-opacity: 0.35; /* live score-typing letter-grade preview — a bit higher in dark mode; see theme.css */
   --color-segment-active: #90c2ff; /* Settings segmented controls (Appearance/Date format) — same in both themes, not overridden in theme.css */
+  /* The translucent gray laid over a hovered slider option / gray button.
+     50% — raise/lower to make it stronger/fainter everywhere at once. */
+  --color-hover-overlay: color-mix(in srgb, var(--color-gray-light) 50%, transparent);
+
+  /* Letter-grade circle backgrounds — the grade icon PNGs are letters only
+     (see img[data-slug] below). theme.css overrides these for dark mode. */
+  --grade-a: #1051cf;
+  --grade-a-minus: #0a98ff;
+  --grade-b-plus: #21bbb6;
+  --grade-b: #00bb61;
+  --grade-b-minus: #b3dd27;
+  --grade-c-plus: #ffc925;
+  --grade-c: #ffad32;
+  --grade-c-minus: #ff893e;
+  --grade-d: #f64949;
+  --grade-ng: #767676;
   /* profile picture's hover glow — --color-gray-lighter (#eeeeee) reads as
      indistinguishable from white once blurred against a light page, so
      this uses the more visibly gray --color-gray-light instead; white
@@ -413,6 +420,16 @@ body {
   padding-bottom: 32px;
 }
 
+/* Calendar tab: the page is exactly the space below the 71px tab bar (see
+   .tab-bar), as a column, so the calendar can take whatever height is left
+   after its heading row. */
+.page-content--fill {
+  box-sizing: border-box;
+  height: calc(100vh - 71px);
+  display: flex;
+  flex-direction: column;
+}
+
 /* Fixed to the viewport, not the end of the page's content, so it never
    adds scrollable height of its own. */
 .page-footer {
@@ -449,7 +466,7 @@ body {
   border-radius: calc(20px * var(--squircle-scale));
   corner-shape: squircle;
   padding: 32px;
-  box-shadow: 0 8px 24px var(--color-shadow);
+  box-shadow: var(--shadow-card);
 }
 
 .placeholder-card h2 {
@@ -516,7 +533,7 @@ body {
   border: 1px solid transparent;
   box-sizing: border-box;
   border-radius: 999px;
-  box-shadow: 0 8px 24px var(--color-shadow);
+  box-shadow: var(--shadow-card);
   font-size: 14px;
 }
 
@@ -1077,7 +1094,8 @@ body {
 }
 
 .add-assessment-course-btn:hover:not(.add-assessment-course-btn--selected) {
-  background: var(--color-gray-light);
+  /* The slider's hover overlay, laid over the button's own gray. */
+  background: linear-gradient(var(--color-hover-overlay), var(--color-hover-overlay)), var(--color-gray-lighter);
 }
 
 .add-assessment-course-btn--selected {
@@ -1125,7 +1143,7 @@ body {
   border-radius: calc(20px * var(--squircle-scale));
   corner-shape: squircle;
   padding: 32px;
-  box-shadow: 0 8px 24px var(--color-shadow);
+  box-shadow: var(--shadow-card);
 }
 
 .settings-title {
@@ -1155,6 +1173,9 @@ body {
 /* Appearance / Font / Date format pickers. */
 .segmented-control {
   position: relative; /* containing block for .segmented-thumb below */
+  /* Its own stacking context, so the layers below (option hover
+     backgrounds, thumb, text) stack among themselves and nothing else. */
+  isolation: isolate;
   display: inline-flex;
   gap: 4px;
   padding: 4px;
@@ -1169,21 +1190,25 @@ body {
 }
 
 /* The active pill background, as a single element that slides between
-   options instead of each snapping on and off. Sits behind the buttons
-   (z-index), so their text/hover states are unaffected. */
+   options instead of each snapping on and off. Layered (see the z-indexes)
+   above every option's gray hover background but below the text, so it
+   visibly slides over a hovered option and covers it. */
 .segmented-thumb {
   position: absolute;
   top: 4px;
   bottom: 4px;
   left: 0;
+  z-index: -1;
   border-radius: 999px;
   background: var(--color-segment-active);
   transition: left 0.2s ease, width 0.2s ease;
 }
 
+/* Not its own stacking context (no z-index), so the hover background on
+   ::before below can sit underneath the thumb while the label text sits
+   above it. */
 .segmented-option {
   position: relative;
-  z-index: 1;
   padding: 8px 16px;
   border: none;
   border-radius: 999px;
@@ -1196,12 +1221,31 @@ body {
   white-space: nowrap;
 }
 
-.segmented-option:hover:not(.segmented-option--active) {
-  background: var(--color-gray-light);
+/* The hover background lives here rather than on the button itself — see
+   .segmented-thumb. */
+.segmented-option::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  border-radius: inherit;
+  background: transparent;
+}
+
+.segmented-option:hover:not(.segmented-option--active)::before {
+  background: var(--color-hover-overlay);
 }
 
 .segmented-option--active {
   color: #111111;
+}
+
+/* Clicking a hovered option makes it active straight away, but its gray
+   hover background lingers for the thumb's 0.2s slide (the delay below), so
+   the thumb visibly travels over it instead of the gray vanishing the
+   moment it starts moving. */
+.segmented-option--active::before {
+  transition: background-color 0s linear 0.2s;
 }
 
 .settings-danger-row {
@@ -1223,7 +1267,8 @@ body {
 }
 
 .settings-danger-btn:hover {
-  background: var(--color-gray-light);
+  /* The slider's hover overlay, laid over the button's own gray. */
+  background: linear-gradient(var(--color-hover-overlay), var(--color-hover-overlay)), var(--color-gray-lighter);
 }
 
 /* Row of up to two boxes: .settings-card and (once "Login Keys" is
@@ -1297,7 +1342,8 @@ body {
 }
 
 .settings-copy-btn:hover {
-  background: var(--color-gray-light);
+  /* The slider's hover overlay, laid over the button's own gray. */
+  background: linear-gradient(var(--color-hover-overlay), var(--color-hover-overlay)), var(--color-gray-lighter);
 }
 
 .settings-copy-icon {
@@ -1618,6 +1664,16 @@ body {
   display: none;
 }
 
+/* The My Courses popup's suggestion list — moved to <body> and positioned
+   in JS (see setupCourseDropdown) so it isn't clipped by the popup's own
+   edges. Above .settings-modal-overlay (z-index: 200). */
+.schedule-dropdown--floating {
+  position: fixed;
+  z-index: 300;
+  right: auto;
+  box-sizing: border-box;
+}
+
 .schedule-dropdown-item {
   position: relative;
   padding: 8px 12px;
@@ -1732,7 +1788,7 @@ body {
   border-radius: calc(20px * var(--squircle-scale));
   corner-shape: squircle;
   padding: 24px 32px 32px;
-  box-shadow: 0 8px 24px var(--color-shadow);
+  box-shadow: var(--shadow-card);
 }
 
 /* display: flex above beats the [hidden] attribute's own default. Only
@@ -1741,9 +1797,34 @@ body {
   display: none;
 }
 
-/* My Courses' own calendar only — the admin page keeps the shared 560px. */
-.my-courses-calendar-card {
-  width: 700px;
+/* The Calendar tab's calendar: a heading row, then a white rounded box
+   that is nothing but the grid, edge to edge — cells run right to the
+   box's own (clipped) corners, with hairline seams between them. */
+.my-courses-calendar {
+  /* The cell HEIGHT is what's derived from the screen; the width follows
+     from it (see .assessment-calendar-weeks). Height is what's left below
+     the tab bar (71px) and the page's 32px top/bottom padding, after the
+     weekday label strip on the top row and the 3 one-pixel row gaps,
+     split across 4 rows — with a floor, so a short window scrolls the
+     page instead of crushing the rows. */
+  --cal-label-h: 24px;
+  --cal-cell-h: max(90px, calc((100vh - 71px - 64px - var(--cal-label-h) - 3px) / 4));
+  flex: none;
+}
+
+/* Shrink-wraps the grid, whose width is fixed by the cell height. */
+.my-courses-calendar-box {
+  width: fit-content;
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.my-courses-calendar-box .assessment-calendar-loading {
+  min-width: 320px;
+  min-height: 260px;
 }
 
 .assessment-calendar-title {
@@ -1751,16 +1832,6 @@ body {
   font-size: 28px;
   font-weight: var(--fw-class-name);
   color: var(--color-text-primary);
-}
-
-/* My Courses' calendar title + the "Add Missing Assessment" trigger,
-   side by side — the title keeps its own margin above from the shared
-   rule so a card with no button (the admin page) is unaffected. */
-.my-courses-calendar-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
 }
 
 .add-assessment-trigger-btn {
@@ -1835,12 +1906,6 @@ body {
   text-align: center;
   font-size: 13px;
   color: var(--color-gray-dark);
-}
-
-/* My Courses' own assessment calendar skips weekends — 5 wider columns
-   instead of the 7 the admin page's month-grid still uses. */
-.assessment-calendar-weekday-row--5col {
-  grid-template-columns: repeat(5, 1fr);
 }
 
 .assessment-calendar-day {
@@ -1927,6 +1992,12 @@ body {
   background: var(--color-accent-strong);
 }
 
+/* Stands in for 5 dots at once — a sharp-cornered square whose side equals
+   a dot's diameter (5px, inherited from .assessment-calendar-day-dot). */
+.assessment-calendar-day-dot--five {
+  border-radius: 0;
+}
+
 .assessment-calendar-day--selected .assessment-calendar-day-dot {
   background: var(--color-surface);
 }
@@ -1967,18 +2038,18 @@ body {
    background shows through as a seam between each cell's own opaque
    background, reading as a thin gridline. */
 .assessment-calendar-weeks {
-  /* Not flex: 1 — this box's height is always exactly its 4 fixed-height
-     rows; it must never grow to fill leftover card space, or its own
-     gray gridline background would fill that space as a blank block.
-     min-height: 0 + overflow-y: auto is only a defensive fallback; a
-     single day with too many assessments scrolls internally instead. */
-  min-height: 0;
-  overflow-y: auto;
+  /* Every day cell is 4:3 (height : width) — the height is
+     --cal-cell-h (see .my-courses-calendar) and the width is 3/4 of it,
+     not the other way around. The top row is that tall plus the weekday
+     label strip, so the label never eats into a date cell. A day with too
+     many assessments scrolls inside its own cell (see
+     .assessment-week-day-pills) instead of stretching its row. */
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(7, calc(var(--cal-cell-h) * 0.75));
+  grid-template-rows: calc(var(--cal-cell-h) + var(--cal-label-h)) repeat(3, var(--cal-cell-h));
   gap: 1px;
-  background: var(--color-gray-lighter);
-  border: 1px solid var(--color-gray-lighter);
+  /* A step darker than --color-gray-lighter, halfway to --color-gray-light. */
+  background: color-mix(in srgb, var(--color-gray-lighter) 50%, var(--color-gray-light));
   scrollbar-width: thin;
   scrollbar-color: var(--color-scrollbar-thumb) transparent;
 }
@@ -2002,25 +2073,82 @@ body {
   display: none;
 }
 
-/* min-width: 0 overrides a grid item's default min-width: auto — without
-   it, a pill that refuses to shrink could force this cell wider than its
-   1fr track. height (not min-height) is the same idea vertically — a
-   flat, fixed 130px that never grows; see .assessment-week-day-pills
-   below for where overflow actually goes. */
+/* min-width/min-height: 0 override a grid item's default min-*: auto —
+   without them, a pill that refuses to shrink could force this cell wider
+   than its 1fr column, or a long list taller than its row. The row's
+   height comes from the grid (see .assessment-calendar-weeks); overflow
+   goes to .assessment-week-day-pills below. */
 .assessment-week-day {
+  position: relative;
   background: var(--color-surface);
   min-width: 0;
-  height: 130px;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding: 6px 4px;
 }
 
+/* Saturdays and Sundays — the :root light gray, halfway to the card's own
+   surface color (no new palette color needed). */
+.assessment-week-day--weekend {
+  background: color-mix(in srgb, var(--color-gray-lighter) 50%, var(--color-surface));
+}
+
+/* Top row only — each column's weekday name, in a strip of its own at the
+   top of the cell (--cal-label-h, already added to that row's height), so
+   the date area below matches every other row's. */
+.assessment-week-day--first-row {
+  padding-top: calc(var(--cal-label-h) + 6px);
+}
+
+.assessment-week-day-weekday {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Slight top margin; the height gives it back so the label still ends
+     where the --cal-label-h strip does. */
+  margin-top: 3px;
+  height: calc(var(--cal-label-h) - 3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-gray-dark);
+}
+
+/* One row: the date centered over the column, with the month label (only
+   on the 1st) pinned to the left edge. */
+.assessment-week-day-head {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+}
+
+.assessment-week-day-month {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+  /* Sized so the letters sit as far from the cell's left edge as from its
+     top edge (measured on the rendered text, not the line box). */
+  padding-left: 7.5px;
+  font-size: 13px;
+  color: var(--color-gray-dark);
+}
+
+/* min-width + horizontal padding (not a fixed width) keep today's circle
+   compact around a one-digit date while still fitting a two-digit one. */
 .assessment-week-day-number {
-  align-self: flex-start;
-  width: 22px;
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 22px;
   height: 22px;
+  padding: 0 6px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2029,6 +2157,12 @@ body {
 }
 
 .assessment-week-day-number--today {
+  /* A true circle: fixed equal width/height and no side padding (a date is
+     at most two digits, which fit comfortably in 24px). */
+  width: 24px;
+  height: 24px;
+  min-width: 0;
+  padding: 0;
   border-radius: 50%;
   background: var(--color-accent-strong);
   color: #ffffff;
@@ -2144,6 +2278,48 @@ body {
   border-radius: 6px;
 }
 
+/* The Calendar tab's assessment entries: a colored circle carrying the
+   type's letters (TB = testing block, S = other in-class summative,
+   F = formative), then the course name as plain text. The two blues are
+   fixed, not theme tokens — same in both themes, like the old pills. */
+.assessment-chip {
+  --chip-dark: #264fc9;
+  --chip-light: #4796fa;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex-shrink: 0;
+  cursor: default;
+}
+
+.assessment-chip-badge {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--chip-dark);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.assessment-chip--f .assessment-chip-badge {
+  background: var(--chip-light);
+}
+
+.assessment-chip .assessment-pill-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
 /* The fixed-width clipping window for the text inside it — display:
    block also makes the "Testing Block" sub-label start on its own line.
    The marquee below reveals overflow on hover instead. */
@@ -2246,7 +2422,7 @@ body {
   border-radius: calc(20px * var(--squircle-scale));
   corner-shape: squircle;
   padding: 32px;
-  box-shadow: 0 8px 24px var(--color-shadow);
+  box-shadow: var(--shadow-card);
   font-size: 17px;
   color: var(--color-text-primary);
 }
@@ -2275,7 +2451,7 @@ body {
   border-radius: calc(20px * var(--squircle-scale));
   corner-shape: squircle;
   padding: 24px 32px 32px;
-  box-shadow: 0 8px 24px var(--color-shadow);
+  box-shadow: var(--shadow-card);
 }
 
 /* Posts admin reuses .admin-day-panel's whole layout standalone (no
@@ -2736,7 +2912,7 @@ body {
   text-align: center;
   font-size: 22px;
   color: var(--color-text-primary);
-  box-shadow: 0 8px 24px var(--color-shadow);
+  box-shadow: var(--shadow-card);
 }
 
 .domain-empty-hint-link {
@@ -2763,7 +2939,7 @@ body {
      from .assessment-groups' own locked height budget instead, shrinking
      Formatives/Summatives to make room rather than growing the card. */
   min-height: 520px;
-  box-shadow: 0 8px 24px var(--color-shadow);
+  box-shadow: var(--shadow-card);
 }
 
 /* Hides this course from Domain — see hideClassCard in domain.js. Bring
@@ -2809,6 +2985,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  height: 54px;
   margin-bottom: 12px;
 }
 
@@ -2824,6 +3001,29 @@ body {
   user-select: none;
   -webkit-user-drag: none;
 }
+
+/* The colored circle behind every letter-grade icon. The PNGs are white
+   letters on transparent, so the circle is just this background —
+   border-radius makes it round; the color comes from the icon's slug. */
+img[data-slug] {
+  border-radius: 50%;
+  background-color: var(--grade-color, transparent);
+}
+
+img[data-slug="a-plus"],
+img[data-slug="a"] { --grade-color: var(--grade-a); }
+img[data-slug="a-minus"] { --grade-color: var(--grade-a-minus); }
+img[data-slug="b-plus"] { --grade-color: var(--grade-b-plus); }
+img[data-slug="b"] { --grade-color: var(--grade-b); }
+img[data-slug="b-minus"] { --grade-color: var(--grade-b-minus); }
+img[data-slug="c-plus"] { --grade-color: var(--grade-c-plus); }
+img[data-slug="c"] { --grade-color: var(--grade-c); }
+img[data-slug="c-minus"] { --grade-color: var(--grade-c-minus); }
+img[data-slug="d-plus"],
+img[data-slug="d"],
+img[data-slug="d-minus"],
+img[data-slug="f"] { --grade-color: var(--grade-d); }
+img[data-slug="ng"] { --grade-color: var(--grade-ng); }
 
 .letter-grade--lg {
   width: 54px;
@@ -2876,6 +3076,79 @@ body {
   filter: grayscale(1);
 }
 
+html[data-privacy-blur] .class-card .score-value,
+html[data-privacy-blur] .class-card .score-original {
+  filter: blur(4px);
+  transition: filter 0.2s ease, color 0.2s ease;
+}
+
+/* :not([data-empty]) — a "--" placeholder has nothing to hide (see
+   updateDomainBadge). */
+html[data-privacy-blur] .class-card .grade-value:not([data-empty]) {
+  filter: blur(6px);
+  transition: filter 0.2s ease, color 0.2s ease;
+}
+
+/* Gray rather than the usual black while blurred (.score-original is
+   already gray). Restored to normal along with the blur below. */
+html[data-privacy-blur] .class-card .score-value,
+html[data-privacy-blur] .class-card .grade-value:not([data-empty]) {
+  color: var(--color-gray-dark);
+}
+
+html[data-privacy-blur] .class-card .score-list .letter-grade,
+html[data-privacy-blur] .class-card .letter-grade-lg-wrap {
+  filter: grayscale(1);
+  transition: filter 0.2s ease;
+}
+
+html[data-privacy-blur] .class-card .assessment-box:is(:hover, :focus-within) .score-value,
+html[data-privacy-blur] .class-card .assessment-box:is(:hover, :focus-within) .score-original,
+html[data-privacy-blur] .class-card .grade-summary:hover .grade-value {
+  filter: none;
+}
+
+html[data-privacy-blur] .class-card .assessment-box:is(:hover, :focus-within) .score-value,
+html[data-privacy-blur] .class-card .grade-summary:hover .grade-value {
+  color: var(--color-text-primary);
+}
+
+/* A Formative just changed because of a new Summative — see
+   revealScoreRowBriefly. Its icon stays gray. */
+html[data-privacy-blur] .class-card li[data-reveal-score] .score-value,
+html[data-privacy-blur] .class-card li[data-reveal-score] .score-original {
+  filter: none;
+}
+
+html[data-privacy-blur] .class-card li[data-reveal-score] .score-value {
+  color: var(--color-text-primary);
+}
+
+/* Just committed a score with Enter — see revealDomainScoreBriefly. */
+html[data-privacy-blur] .class-card[data-reveal-domain] .grade-summary .grade-value {
+  filter: none;
+  color: var(--color-text-primary);
+}
+
+html[data-privacy-blur] .class-card[data-reveal-domain] .grade-summary .letter-grade-lg-wrap {
+  filter: none;
+}
+
+/* :not(--preview) keeps a live-typing preview icon's own desaturation. */
+html[data-privacy-blur] .class-card .assessment-box:is(:hover, :focus-within) .score-list .letter-grade:not(.letter-grade--preview),
+html[data-privacy-blur] .class-card .grade-summary:hover .letter-grade-lg-wrap {
+  filter: none;
+}
+
+/* Animations off: snap instead of easing. */
+html[data-animations-off][data-privacy-blur] .class-card .score-value,
+html[data-animations-off][data-privacy-blur] .class-card .score-original,
+html[data-animations-off][data-privacy-blur] .class-card .grade-value,
+html[data-animations-off][data-privacy-blur] .class-card .score-list .letter-grade,
+html[data-animations-off][data-privacy-blur] .class-card .letter-grade-lg-wrap {
+  transition: none;
+}
+
 .grade-value {
   font-size: 44px;
   font-weight: var(--fw-grade-value);
@@ -2887,6 +3160,38 @@ body {
   font-size: 15px;
   font-weight: var(--fw-grade-breakdown);
   color: var(--color-gray-dark);
+  /* "No grades yet" and the FA/SA/D line share one cell so the line's
+     height never changes as they swap (see setBreakdownState). */
+  display: grid;
+}
+
+.breakdown-empty,
+.breakdown-values {
+  grid-area: 1 / 1;
+  /* Hiding: fade/blur out, then drop visibility once that's finished. */
+  transition: opacity 250ms ease, filter 250ms ease, visibility 0s linear 250ms;
+}
+
+.grade-breakdown[data-state="empty"] .breakdown-values,
+.grade-breakdown[data-state="values"] .breakdown-empty {
+  opacity: 0;
+  filter: blur(4px);
+  visibility: hidden;
+}
+
+/* Showing: visible immediately, then fade/blur in. */
+.grade-breakdown[data-state="empty"] .breakdown-empty,
+.grade-breakdown[data-state="values"] .breakdown-values {
+  opacity: 1;
+  filter: blur(0);
+  visibility: visible;
+  transition: opacity 250ms ease, filter 250ms ease, visibility 0s;
+}
+
+/* Page-load restore and Animations off — see setBreakdownState. */
+.grade-breakdown--instant .breakdown-empty,
+.grade-breakdown--instant .breakdown-values {
+  transition: none !important;
 }
 
 /* Tightens the gap to .next-assessment-line when it's actually showing
@@ -3017,8 +3322,9 @@ html[data-hide-upcoming-assessments] .next-assessment-line {
   display: flex;
   flex-direction: column;
   border: 1.5px solid var(--color-gray-light);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 10px 16px 16px;
+  cursor: text;
 }
 
 /* Final Exam, when present, sits below .assessment-fs-row inside
@@ -3035,6 +3341,7 @@ html[data-hide-upcoming-assessments] .next-assessment-line {
   font-size: 20px;
   font-weight: var(--fw-assessment-label);
   color: var(--color-text-primary);
+  cursor: text;
 }
 
 .score-list {
@@ -3086,7 +3393,6 @@ html[data-hide-upcoming-assessments] .next-assessment-line {
   position: relative;
   /* Declared explicitly — the row-to-row gap wasn't reliably inheriting
      the value from .assessment-groups several levels up. */
-  cursor: text;
 }
 
 .score-list li label {
@@ -3430,7 +3736,7 @@ html[data-hide-upcoming-assessments] .next-assessment-line {
   border-radius: calc(20px * var(--squircle-scale));
   corner-shape: squircle;
   padding: 32px;
-  box-shadow: 0 8px 24px var(--color-shadow);
+  box-shadow: var(--shadow-card);
 }
 
 .gpa-classes-card {
@@ -3721,7 +4027,7 @@ html[data-hide-upcoming-assessments] .next-assessment-line {
   border-radius: calc(20px * var(--squircle-scale));
   corner-shape: squircle;
   padding: 24px 32px 32px;
-  box-shadow: 0 8px 24px var(--color-shadow);
+  box-shadow: var(--shadow-card);
 }
 
 /* display: flex above beats the [hidden] attribute's own default — this
@@ -3850,7 +4156,8 @@ html[data-hide-upcoming-assessments] .next-assessment-line {
 }
 
 .suggestions-decline-btn:hover {
-  background: var(--color-gray-light);
+  /* The slider's hover overlay, laid over the button's own gray. */
+  background: linear-gradient(var(--color-hover-overlay), var(--color-hover-overlay)), var(--color-gray-lighter);
 }
 
 /* "Learn More" grade-protection modal (Domain's footer) — same centered

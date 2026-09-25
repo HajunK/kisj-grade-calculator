@@ -32,6 +32,19 @@
      a shadow (they're floating above other content, not flush against the
      page), just a lighter, subtler one than the light-mode default. */
   --color-shadow: transparent;
+  --shadow-card: none;
+
+  /* Letter-grade circle backgrounds, dark-mode set (see img[data-slug] in
+     style.css). */
+  --grade-a: #1d65f1;
+  --grade-a-minus: #00c2ff;
+  --grade-b-plus: #33d9c0;
+  --grade-b: #00e376;
+  --grade-b-minus: #aee100;
+  --grade-c-plus: #efda19;
+  --grade-c: #ffb12d;
+  --grade-c-minus: #ff8b49;
+  --grade-d: #ff6161;
   --color-shadow-popover: rgba(255, 255, 255, 0.08);
 
   /* A grayscale icon at the same opacity reads dimmer against the darker
