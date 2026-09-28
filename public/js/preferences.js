@@ -1,7 +1,6 @@
 // Site preferences: appearance (light/dark/system), date format, whether
 // the FA/SA/D breakdown line shows, whether a new Formative starts linked
-// to its Summative by default, whether animations play at all, and whether
-// scores are blurred until hovered (privacy blur: never/school/always). Loaded
+// to its Summative by default, and whether scores are blurred until hovered (privacy blur: never/school/always). Loaded
 // right after firebase-config.js so cached preferences apply before the
 // rest of the page builds.
 //
@@ -16,8 +15,8 @@ const DEFAULT_PREFERENCES = {
   showBreakdown: true, // the FA/SA/D line on Domain class cards
   showUpcomingAssessments: true, // the "Upcoming ...:" line on Domain class cards
   replaceFormativesByDefault: true, // a newly-qualifying Formative starts linked to its Summative
-  animationsEnabled: true,
   privacyBlurMode: "never", // "never" | "school" | "always" — blurs Domain scores until hovered
+  courseColors: {}, // typed course name -> color name picked in the Calendar tab's Course Colors
 };
 
 const PREFS_CACHE_PREFIX = "prefs_";
@@ -84,7 +83,7 @@ function notifyPreferencesChanged() {
   window.dispatchEvent(new CustomEvent("app:preferences-changed"));
 }
 
-// Whether html[data-privacy-blur] (what style.css actually keys off) is on
+// Whether html[data-privacy-blur] (what domain.css actually keys off) is on
 // right now: always in "always", never in "never", and in "school" only
 // while isDuringSchoolNow (assessments-shared.js) says it's inside the
 // school day — re-checked on a timer so it flips on its own as the day
@@ -123,12 +122,6 @@ function applyPreferences(prefs) {
     delete document.documentElement.dataset.hideUpcomingAssessments;
   }
   applyPrivacyBlur(prefs.privacyBlurMode);
-  // Lets CSS-only transitions (e.g. the privacy blur) honor Animations off.
-  if (prefs.animationsEnabled === false) {
-    document.documentElement.dataset.animationsOff = "true";
-  } else {
-    delete document.documentElement.dataset.animationsOff;
-  }
 }
 
 // Re-applies the resolved theme the moment the OS setting changes, while
@@ -187,10 +180,6 @@ watchSystemTheme(currentPrefs.appearance);
 
 window.getPreferences = function getPreferences() {
   return { ...currentPrefs };
-};
-
-window.animationsEnabled = function animationsEnabled() {
-  return currentPrefs.animationsEnabled !== false;
 };
 
 window.setPreference = function setPreference(key, value) {

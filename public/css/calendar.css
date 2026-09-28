@@ -1,0 +1,1720 @@
+/* Height is left to each page: My Courses sizes to its content, Assessments
+   sets its own. */
+
+.assessment-calendar-card {
+  width: 560px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 24px 32px 32px;
+  box-shadow: var(--shadow-card);
+}
+
+.assessment-calendar-card[hidden] {
+  display: none;
+}
+
+.my-courses-calendar {
+  /* Cell height is what's left below the tab bar and page padding after the
+     weekday strip and 3 row gaps, split over 4 rows. Floored so a short window
+     scrolls instead of crushing rows; width follows from it. */
+  --cal-label-h: 24px;
+  --cal-cell-h: max(90px, calc((100vh - 71px - 64px - var(--cal-label-h) - 3px) / 4));
+  flex: none;
+  display: flex;
+  gap: 36px;
+}
+
+.my-courses-calendar[hidden] {
+  display: none;
+}
+
+.my-courses-calendar-box {
+  flex: none;
+  width: fit-content;
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.my-courses-calendar-box .assessment-calendar-loading {
+  min-width: 320px;
+  min-height: 260px;
+}
+
+.assessment-calendar-title {
+  margin: 0 0 16px;
+  font-size: 28px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.assessment-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.assessment-calendar-label {
+  font-size: 18px;
+  font-weight: var(--fw-assessment-label);
+  color: var(--color-text-primary);
+}
+
+.assessment-calendar-nav-btn {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text-primary);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.assessment-calendar-nav-btn:hover:not(:disabled) {
+  background: var(--color-gray-lighter);
+}
+
+.assessment-calendar-nav-btn:disabled {
+  color: var(--color-gray-light);
+  cursor: default;
+}
+
+.assessment-calendar-weekday-row,
+.assessment-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.assessment-calendar-weekday-row {
+  margin-bottom: 6px;
+}
+
+.assessment-calendar-weekday-row[hidden] {
+  display: none;
+}
+
+/* Same as the Calendar tab's weekday labels (.assessment-week-day-weekday). */
+.assessment-calendar-weekday-row span {
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-gray-dark);
+}
+
+.assessment-calendar-day {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border: none;
+  border-radius: calc(10px * var(--squircle-scale));
+  corner-shape: squircle;
+  background: none;
+  font: inherit;
+  font-size: 15px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.assessment-calendar-day--outside {
+  visibility: hidden;
+  cursor: default;
+}
+
+/* :not(--selected): :hover outranks the single --selected class and would turn
+   the selected day's colors back to gray-on-white. */
+.assessment-calendar-day:hover:not(.assessment-calendar-day--selected) {
+  background: var(--color-gray-lighter);
+}
+
+.assessment-calendar-day-number--today {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+/* Inverse of the selected day's colors, otherwise it's blue-on-blue on the
+   solid background. */
+.assessment-calendar-day--selected .assessment-calendar-day-number--today {
+  background: var(--color-surface);
+  color: var(--color-accent);
+}
+
+.assessment-calendar-day--selected {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.assessment-calendar-day-dots {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 3px;
+}
+
+.assessment-calendar-day-dot {
+  flex-shrink: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
+/* Stands in for 5 dots so a busy day doesn't overflow the cell. */
+.assessment-calendar-day-dot--five {
+  border-radius: 0;
+}
+
+.assessment-calendar-day--selected .assessment-calendar-day-dot {
+  background: var(--color-surface);
+}
+
+.assessment-calendar-day-type {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-gray-dark);
+}
+
+/* --color-surface already contrasts with the selected day's background in
+   either theme; gray-dark would be too faint. */
+.assessment-calendar-day--selected .assessment-calendar-day-type {
+  color: color-mix(in srgb, var(--color-surface) 70%, transparent);
+}
+
+/* The same look as the Calendar tab's .assessment-chip, in dark blue. */
+.assessment-calendar-entry-type {
+  --chip-color: var(--color-dark-blue);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1.5px solid transparent;
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--chip-color) 35%, var(--color-text-primary));
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.assessment-calendar-entry-type::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--chip-color);
+}
+
+.assessment-calendar-entry-type--summative {
+  background: oklch(from color-mix(in oklch, var(--chip-color) 22%, var(--color-surface)) l calc(c * 1.8) h);
+}
+
+.assessment-calendar-entry-type--formative {
+  border-color: var(--chip-color);
+  border-style: dashed;
+}
+
+/* gap: 1px over this gray background reads as thin gridlines. */
+.assessment-calendar-weeks {
+  /* Height comes from --cal-cell-h and width is 3/4 of it, not the reverse. The
+     top row adds the weekday strip so labels never eat into a date cell. A busy
+     day scrolls inside its cell rather than stretching the row. */
+  display: grid;
+  grid-template-columns: repeat(7, calc(var(--cal-cell-h) * 0.75));
+  grid-template-rows: calc(var(--cal-cell-h) + var(--cal-label-h)) repeat(3, var(--cal-cell-h));
+  gap: 1px;
+  background: color-mix(in srgb, var(--color-gray-lighter) 50%, var(--color-gray-light));
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollbar-thumb) transparent;
+}
+
+.assessment-calendar-weeks::-webkit-scrollbar {
+  width: 4px;
+}
+
+.assessment-calendar-weeks::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.assessment-calendar-weeks::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar-thumb);
+  border-radius: 4px;
+}
+
+.assessment-calendar-weeks[hidden] {
+  display: none;
+}
+
+/* min-width/min-height: 0 override the grid item's min-*: auto, which would let
+   a stubborn pill widen the column or a long list stretch the row. */
+.assessment-week-day {
+  position: relative;
+  background: var(--color-surface);
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 4px;
+}
+
+/* Halfway to the surface color, so no extra palette color is needed. */
+.assessment-week-day--weekend {
+  background: color-mix(in srgb, var(--color-gray-lighter) 50%, var(--color-surface));
+}
+
+.assessment-week-day--first-row {
+  padding-top: calc(var(--cal-label-h) + 6px);
+}
+
+.assessment-week-day-weekday {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* The height gives the margin back so the label still ends where the
+     --cal-label-h strip does. */
+  margin-top: 3px;
+  height: calc(var(--cal-label-h) - 3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-gray-dark);
+}
+
+.assessment-week-day-head {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+}
+
+.assessment-week-day-month {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+  /* Letters sit as far from the left edge as from the top, measured on the
+     rendered text rather than the line box. */
+  padding-left: 7.5px;
+  font-size: 13px;
+  color: var(--color-gray-dark);
+}
+
+/* min-width plus horizontal padding, not a fixed width, keeps today's circle
+   compact around one digit while still fitting two. */
+.assessment-week-day-number {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.assessment-week-day-number--today {
+  /* A true circle: equal width/height and no side padding. */
+  width: 24px;
+  height: 24px;
+  min-width: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+/* This scrolls when a day has too many assessments; the fixed-height cell above
+   doesn't. */
+.assessment-week-day-pills {
+  min-width: 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollbar-thumb) transparent;
+}
+
+.assessment-week-day-pills::-webkit-scrollbar {
+  width: 3px;
+}
+
+.assessment-week-day-pills::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.assessment-week-day-pills::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar-thumb);
+  border-radius: 3px;
+}
+
+/* Above the pills, since it sits over the bottom of the list, and ignoring
+   the pointer so it never gets in the way of one. */
+.assessment-week-day-type {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  z-index: 1;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-gray-dark);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.assessment-week-day:hover .assessment-week-day-type {
+  opacity: 1;
+}
+
+/* min-width: 0 lets a pill shrink at all, since a flex item's default is its
+   content size, which would overflow the column. Long names are clipped and
+   revealed by the hover marquee (see buildDayCell). */
+.assessment-pill {
+  display: block;
+  min-width: 0;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: default;
+  background: var(--color-gray-lighter);
+  color: var(--color-text-primary);
+}
+
+/* Holds a pill while it animates in or out (see enterPill/leavePill in
+   my-courses.js), clipping it as the slot's height opens or closes. */
+.assessment-pill-slot {
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.assessment-pill-slot--leaving {
+  pointer-events: none;
+}
+
+/* Every shade is derived from one base color, so a course color can later be
+   swapped in by changing --chip-color alone. Mixing toward the surface and text
+   colors (not white and black) keeps both themes readable. */
+.assessment-chip {
+  --chip-color: var(--color-dark-blue);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex-shrink: 0;
+  padding: 3px 8px;
+  /* Summatives carry the same border transparently, so both kinds are the same
+     size. */
+  border: 1.5px solid transparent;
+  border-radius: 999px;
+  /* Keeps the name inside the rounded ends now that it reaches the border. */
+  overflow: hidden;
+  cursor: default;
+}
+
+.assessment-chip--summative {
+  /* Mixed in OKLCH so the hue holds instead of drifting gray the way an sRGB
+     mix does, then chroma is boosted to win back the saturation that mixing
+     toward the surface drains away. */
+  background: oklch(from color-mix(in oklch, var(--chip-color) 22%, var(--color-surface)) l calc(c * 1.8) h);
+}
+
+.assessment-chip--formative {
+  border-color: var(--chip-color);
+  border-style: dashed;
+}
+
+/* An assignment reads like a to-do item: no fill or border, an open ring for
+   the dot, and what's due under the course name. */
+.assessment-chip--assignment {
+  align-items: flex-start;
+}
+
+.assessment-chip--assignment .assessment-chip-dot {
+  margin-top: 4px;
+  background: none;
+  box-shadow: inset 0 0 0 1.5px var(--chip-color);
+}
+
+.assessment-chip-lines {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.assessment-chip-lines .assessment-pill-name {
+  flex: none;
+}
+
+.assessment-chip-subtitle {
+  margin-right: -8px;
+  overflow: hidden;
+  white-space: nowrap;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--color-gray-dark);
+}
+
+.assessment-chip-dot {
+  flex: 0 0 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--chip-color);
+}
+
+.assessment-chip .assessment-pill-name {
+  flex: 1;
+  min-width: 0;
+  /* Runs through the pill's right padding up to the border, fading out on the
+     way, so a long name dissolves at the edge instead of being sliced off.
+     Short names never reach the fade. */
+  margin-right: -8px;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent);
+  font-size: 13px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--chip-color) 35%, var(--color-text-primary));
+}
+
+/* A fixed-width clipping window; the marquee below reveals overflow on hover. */
+.assessment-pill-name,
+.assessment-pill-testing-label {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.assessment-pill-testing-label {
+  opacity: 0.7;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* inline-block, not the window's block, lets the text size to its full width,
+   which the marquee scrolls. */
+.assessment-pill-text {
+  display: inline-block;
+}
+
+/* Two phases, handed off in buildDayCell's animationend listener: the first
+   pass starts from the text's resting position so hovering never looks like the
+   pill went blank, then the ordinary loop takes over. */
+.assessment-pill-text--marquee-in {
+  animation: assessment-pill-marquee-in 3s linear 1;
+}
+
+.assessment-pill-text--marquee-loop {
+  animation: assessment-pill-marquee-loop 3s linear infinite;
+}
+
+@keyframes assessment-pill-marquee-in {
+  from {
+    transform: translateX(0%);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes assessment-pill-marquee-loop {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+.assessment-calendar-loading {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+}
+
+.assessment-calendar-loading[hidden] {
+  display: none;
+}
+
+.assessment-calendar-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-gray-light);
+  border-top-color: var(--color-gray-dark);
+  border-radius: 50%;
+  animation: assessment-calendar-spin 0.7s linear infinite;
+}
+
+@keyframes assessment-calendar-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Stretches to the calendar's height, so both cards line up with its top and
+   bottom edges. */
+.calendar-side {
+  flex: 1;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+}
+
+.calendar-side-card {
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  box-shadow: var(--shadow-card);
+}
+
+/* A column, so the Upcoming list takes the height left under the header and
+   scrolls inside it. */
+.todo-card {
+  --todo-pad-top: 28px;
+  --todo-header-h: 32px;
+  --todo-header-gap: 16px;
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* No bottom padding: the list runs to the card's edge and fades out there
+     instead (see ::after). */
+  padding: var(--todo-pad-top) 32px 0;
+}
+
+/* A fade into the card's surface over the last stretch of the list, as on
+   Domain's score lists: an overlay rather than a mask on the list, which would
+   put the list in a layer of its own. */
+.todo-card::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  /* Stops short of the list's scrollbar, which shouldn't fade: the card's
+     20px beside the list, plus the scrollbar. */
+  right: calc(20px + var(--upcoming-scrollbar-w, 0px));
+  bottom: 0;
+  z-index: 1;
+  height: 36px;
+  border-radius: 0 0 calc(20px * var(--squircle-scale)) calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  background: linear-gradient(to bottom, transparent, var(--color-surface));
+  pointer-events: none;
+}
+
+/* Where the list scrolls up under the header it blurs and dims, more the
+   higher it goes, like Instagram's comments sheet, and only the part actually
+   under there: a row half past the header's edge stays sharp below it.
+   This holds a blurred copy of the list, kept lined up with the real one in
+   JS (see copyUpcomingForBlur), faded in over that strip while the real list
+   fades out beneath it (see .upcoming-list's mask). Blurring a copy rather
+   than using backdrop-filter: Chrome won't blur a backdrop under a mask, so a
+   backdrop blur can only step in hard-edged bands. */
+.upcoming-blur {
+  position: absolute;
+  top: 0;
+  /* The full width of the card, not just the list's, so the blur spreading
+     out past the rows isn't cut off in a hard line; clipped to the card's
+     rounded top corners. The copy sits inside at the list's own position. */
+  left: 0;
+  right: 0;
+  z-index: 1;
+  height: calc(var(--todo-pad-top) + var(--todo-header-h) + var(--todo-header-gap));
+  border-radius: calc(20px * var(--squircle-scale)) calc(20px * var(--squircle-scale)) 0 0;
+  corner-shape: squircle;
+  overflow: hidden;
+  pointer-events: none;
+  /* Never fully opaque, and fainter the higher it goes: rows fade as they
+     blur, from 60% where they hand over from the real ones at the header's
+     bottom edge, through 55% at its middle, to 35% at the card's top.
+     Nothing at the strip's own bottom either, where the list starts at rest,
+     so nothing shows until it's scrolled. */
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.35),
+    rgba(0, 0, 0, 0.55) calc(var(--todo-pad-top) + var(--todo-header-h) / 2),
+    rgba(0, 0, 0, 0.6) calc(var(--todo-pad-top) + var(--todo-header-h)),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.35),
+    rgba(0, 0, 0, 0.55) calc(var(--todo-pad-top) + var(--todo-header-h) / 2),
+    rgba(0, 0, 0, 0.6) calc(var(--todo-pad-top) + var(--todo-header-h)),
+    transparent
+  );
+}
+
+.upcoming-blur-copy {
+  filter: blur(6px);
+}
+
+/* Above the list and its blur (see .upcoming-list). */
+.todo-card-header {
+  position: relative;
+  z-index: 2;
+  height: var(--todo-header-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.todo-card-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.todo-add-btn {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-gray-lighter);
+  color: var(--color-gray-dark);
+  cursor: pointer;
+}
+
+.todo-add-btn[hidden] {
+  display: none;
+}
+
+.todo-add-btn:hover {
+  background: linear-gradient(var(--color-hover-overlay), var(--color-hover-overlay)), var(--color-gray-lighter);
+}
+
+/* Laid out like Google Tasks: a ring to check off, the title, a line under
+   it (here the course, in its color), and an outlined date chip. The course
+   color stands in for Google's blue. */
+/* contain: size keeps a long list from adding to the card's height, which
+   would stretch the whole row past the calendar; it just fills what's left
+   under the header and scrolls. */
+.upcoming-list {
+  flex: 1;
+  min-height: 0;
+  contain: size;
+  overflow-y: auto;
+  /* Pulled up to the card's top edge, under the header, and padded back down
+     so the first item still starts below it: scrolled, items pass up behind
+     the heading, blurring and fading as they go (see .upcoming-blur). */
+  /* 10px further out on the right than the left, so the scrollbar sits a
+     little closer to the card's edge; the scrollbar (8px) and 2px of right
+     padding take that back, keeping the date chips in line with the + button
+     above. */
+  margin: calc(-1 * (var(--todo-pad-top) + var(--todo-header-h))) -22px 0 -12px;
+  /* Room at the bottom for the last item to scroll up clear of the fade. */
+  padding: calc(var(--todo-pad-top) + var(--todo-header-h) + var(--todo-header-gap)) 2px 36px 0;
+  /* Fades out across the strip under the header, handing over to the
+     blurred copy there (see .upcoming-blur). A second, solid layer over the
+     scrollbar's own strip keeps the scrollbar itself from fading with it;
+     --upcoming-scrollbar-w is measured in JS (see placeUpcomingBlur). */
+  -webkit-mask-image:
+    linear-gradient(
+      to bottom,
+      transparent calc(var(--todo-pad-top) + var(--todo-header-h) - 8px),
+      #000 calc(var(--todo-pad-top) + var(--todo-header-h) + var(--todo-header-gap))
+    ),
+    linear-gradient(#000, #000);
+  mask-image:
+    linear-gradient(
+      to bottom,
+      transparent calc(var(--todo-pad-top) + var(--todo-header-h) - 8px),
+      #000 calc(var(--todo-pad-top) + var(--todo-header-h) + var(--todo-header-gap))
+    ),
+    linear-gradient(#000, #000);
+  -webkit-mask-size: 100% 100%, var(--upcoming-scrollbar-w, 0px) 100%;
+  mask-size: 100% 100%, var(--upcoming-scrollbar-w, 0px) 100%;
+  -webkit-mask-position: 0 0, right top;
+  mask-position: 0 0, right top;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  list-style: none;
+}
+
+/* A slim thumb (4px, inside an 8px track) whose track starts below the
+   header and stops short of the card's bottom edge. Chrome only applies
+   these while scrollbar-width and scrollbar-color are left unset, so those
+   are for other browsers only (below). */
+.upcoming-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.upcoming-list::-webkit-scrollbar-track {
+  margin: calc(var(--todo-pad-top) + var(--todo-header-h) + var(--todo-header-gap)) 0 16px;
+  background: transparent;
+}
+
+.upcoming-list::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background: var(--color-scrollbar-thumb) padding-box;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  .upcoming-list {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-scrollbar-thumb) transparent;
+  }
+}
+
+
+/* The ring and the date both span the title and course lines, centered on
+   the two: the ring on the left, the date on the right. */
+.upcoming-item {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  column-gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.upcoming-item:hover {
+  background: var(--color-gray-lighter);
+}
+
+.upcoming-check {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  grid-row: 1 / 3;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 2px solid var(--chip-color, var(--color-gray-dark));
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+/* check.png, the same check as the Show on Calendar filters, used as a mask
+   so it can take the course's color. Shows on hover, as in Google Tasks, and
+   stays once the item is done, over the filled ring. */
+.upcoming-check-icon {
+  width: 12px;
+  height: 12px;
+  background: var(--chip-color, var(--color-gray-dark));
+  -webkit-mask: url("../icons/light/check.png") center / contain no-repeat;
+  mask: url("../icons/light/check.png") center / contain no-repeat;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.upcoming-check:hover .upcoming-check-icon {
+  opacity: 1;
+}
+
+.upcoming-item--done .upcoming-check {
+  background: var(--chip-color, var(--color-gray-dark));
+}
+
+/* Black or white by the course color's lightness, like the popup's Save
+   button. */
+.upcoming-item--done .upcoming-check-icon {
+  background: oklch(from var(--chip-color, var(--color-gray-dark)) clamp(0, (0.78 - l) * 1000, 1) 0 0);
+  opacity: 1;
+}
+
+/* Kept together (the title at the bottom of its row, the course at the top
+   of its) when the date column is the taller of the two. */
+.upcoming-title {
+  align-self: end;
+  max-width: 100%;
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.upcoming-item--done .upcoming-title {
+  color: var(--color-gray-dark);
+  text-decoration: line-through;
+}
+
+/* The course in its darker shade, as on a Calendar pill. */
+.upcoming-course {
+  align-self: start;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  line-height: 18px;
+  color: color-mix(in srgb, var(--chip-color, var(--color-gray-dark)) 35%, var(--color-text-primary));
+}
+
+.upcoming-due {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+/* Filled with the card's own surface, so its gray text stays on white even
+   over a hovered item's gray. */
+.upcoming-date-chip {
+  padding: 2px 10px;
+  border: 1px solid var(--color-gray-light);
+  border-radius: 999px;
+  background: var(--color-surface);
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--color-gray-dark);
+  white-space: nowrap;
+}
+
+/* An assignment still unchecked after its day, in red like Google Tasks'. */
+.upcoming-date-chip--overdue {
+  border-color: color-mix(in srgb, var(--color-red) 45%, transparent);
+  color: var(--color-red);
+}
+
+/* Time left, when it's under 12 hours: H:MM:SS, or MM:SS in the last hour. */
+.upcoming-countdown {
+  display: flex;
+  align-items: flex-end;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+.upcoming-countdown-hours-part {
+  display: flex;
+  align-items: flex-end;
+}
+
+.upcoming-countdown[hidden],
+.upcoming-countdown--under-hour .upcoming-countdown-hours-part {
+  display: none;
+}
+
+.upcoming-empty {
+  padding: 10px 12px;
+  font-size: 15px;
+  color: var(--color-gray-dark);
+}
+
+/* "Completed (N)" and its arrow, closing off the list as in Google Tasks. */
+.upcoming-completed-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 12px;
+  background: none;
+  color: var(--color-gray-dark);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.upcoming-completed-toggle:hover {
+  background: var(--color-hover-overlay);
+}
+
+.upcoming-completed-toggle svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform: rotate(-90deg);
+  transition: transform 0.2s ease;
+}
+
+.upcoming-completed-toggle[aria-expanded="true"] svg {
+  transform: none;
+}
+
+/* Done items read as done: faded, all but the ring, which stays full so it's
+   clearly the thing to click to bring one back. */
+.upcoming-item--completed > :not(.upcoming-check) {
+  opacity: 0.55;
+}
+
+.todo-add-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.calendar-legend-card {
+  flex: none;
+  display: flex;
+  gap: 24px;
+  padding: 28px 32px;
+}
+
+.calendar-legend-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.calendar-legend-divider {
+  flex: none;
+  width: 1.5px;
+  background: var(--color-gray-lighter);
+}
+
+.calendar-legend-label {
+  font-size: 14px;
+  color: var(--color-gray-dark);
+}
+
+/* max-content, so every filter is as wide as the widest one. */
+.calendar-filter-list {
+  width: max-content;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Each filter is drawn in the same style as the pills it controls, in gray.
+   The transparent border keeps every style the same size. */
+.calendar-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 14px 3px 4px;
+  border: 1.5px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--color-filter-text);
+  font: inherit;
+  font-size: 16px;
+  text-align: left;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.calendar-filter--filled {
+  background: var(--color-filter-fill);
+}
+
+.calendar-filter--dashed {
+  border-color: var(--color-filter-border);
+  border-style: dashed;
+}
+
+.calendar-filter::before {
+  content: "";
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-filter-check) url("../icons/light/check.png") center / 13px no-repeat;
+}
+
+/* A black check on the light gray circle, since white would wash out on it. */
+:root[data-theme="dark"] .calendar-filter:not(.calendar-filter--off)::before {
+  background-image: url("../icons/dark/check.png");
+}
+
+.calendar-filter:hover::before {
+  background-color: color-mix(in srgb, var(--color-filter-check) 80%, #000000);
+}
+
+:root[data-theme="dark"] .calendar-filter:hover::before {
+  background-color: color-mix(in srgb, var(--color-filter-check) 55%, #ffffff);
+}
+
+.calendar-filter--off {
+  opacity: 0.45;
+}
+
+.calendar-filter--off::before {
+  background: none;
+  box-shadow: inset 0 0 0 1.5px var(--color-filter-check);
+}
+
+.calendar-filter--off:hover::before {
+  background-color: transparent;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-filter-check) 80%, #000000);
+}
+
+:root[data-theme="dark"] .calendar-filter--off:hover::before {
+  background-color: transparent;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-filter-check) 55%, #ffffff);
+}
+
+.course-color-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.course-color-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 17px;
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.course-color-dot {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--chip-color);
+}
+
+.course-color-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.course-color-picker {
+  position: fixed;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: repeat(4, 26px);
+  gap: 10px;
+  padding: 14px;
+  background: var(--color-surface);
+  border-radius: 14px;
+  /* drop-shadow rather than box-shadow, so the pointer shares one outline with
+     the panel instead of casting a shadow of its own. */
+  filter: drop-shadow(0 0 0.75px var(--color-popover-outline)) drop-shadow(0 0 2px var(--color-popover-outline));
+  opacity: 0;
+  transform: scale(0.85);
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+/* Points at the course's dot: a square turned 45° and half-sunk into the right
+   edge, with its tip rounded. --pointer-y is set in JS, since the panel can be
+   nudged to stay on screen. */
+.course-color-picker::after {
+  content: "";
+  position: absolute;
+  top: calc(var(--pointer-y, 50%) - 11px);
+  right: -11px;
+  width: 22px;
+  height: 22px;
+  background: inherit;
+  border-top-right-radius: 4px;
+  transform: rotate(45deg);
+  /* Behind the swatches: its inner half would otherwise cover the ring on a
+     selected swatch in the last column. */
+  z-index: -1;
+}
+
+.course-color-picker--visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.course-color-swatch {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--chip-color);
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+
+.course-color-swatch:hover {
+  transform: scale(1.12);
+}
+
+/* A ring with a surface-colored gap, so it reads on every swatch color. */
+.course-color-swatch--selected {
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--chip-color);
+}
+
+/* The Upcoming card's "Add to calendar" popup, anchored under its + like a
+   menu and positioned in JS (see initAddToCalendarPopup). */
+.add-popup {
+  --add-popup-pad: 20px;
+  position: fixed;
+  z-index: 60;
+  box-sizing: border-box;
+  width: 400px;
+  max-width: calc(100vw - 32px);
+  padding: var(--add-popup-pad);
+  overflow: hidden auto;
+  scrollbar-width: none;
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  /* Same edge as .popup-menu: a faint 1px edge over the cards' soft shadow. */
+  box-shadow: 0 0 0 1px var(--color-popup-outline), var(--shadow-card);
+  opacity: 0;
+  transform: translateY(-4px) scale(0.98);
+  transform-origin: top right;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.add-popup::-webkit-scrollbar {
+  display: none;
+}
+
+.add-popup--visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* The step on its way out keeps its place while the new one lays out in the
+   flow, so the popup's height can ease from one to the other. */
+.add-popup-step--leaving {
+  position: absolute;
+  top: var(--add-popup-pad);
+  left: var(--add-popup-pad);
+  right: var(--add-popup-pad);
+  pointer-events: none;
+}
+
+/* The title's line box is the back button's height, so the two sit level. */
+.add-popup-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.add-popup-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 22px;
+  line-height: 32px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.add-popup-icon-btn {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-gray-dark);
+  cursor: pointer;
+}
+
+.add-popup-header .add-popup-icon-btn:first-child:not(:last-child) {
+  margin-left: -8px;
+}
+
+.add-popup-icon-btn:hover {
+  color: var(--color-text-primary);
+}
+
+.add-popup-icon-btn svg,
+.add-popup-course-chevron svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.add-popup-icon-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.add-popup-icon-btn .close-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.add-popup-prompt {
+  margin: 0 0 14px 4px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.add-popup-label {
+  display: block;
+  margin: 0 0 8px 4px;
+  font-size: 15px;
+  color: var(--color-gray-dark);
+}
+
+.add-popup-hint {
+  margin: 0 4px;
+  font-size: 14px;
+  color: var(--color-gray-dark);
+}
+
+.add-popup-courses {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.add-popup-course {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 12px 10px 12px 14px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-gray-lighter);
+  /* A step toward the text color from the usual gray, so names read clearly
+     before the hover color takes over. */
+  color: color-mix(in srgb, var(--color-gray-dark) 60%, var(--color-text-primary));
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+/* The same light tint and darker text shade of the course color as a filled
+   Calendar pill. background-color rather than background, so the tint
+   transitions instead of snapping. --active is the course picked for an
+   assessment, kept that way while its date is picked off the calendar. */
+.add-popup-course:hover,
+.add-popup-course--active {
+  background-color: oklch(from color-mix(in oklch, var(--chip-color) 22%, var(--color-surface)) l calc(c * 1.8) h);
+  color: color-mix(in srgb, var(--chip-color) 35%, var(--color-text-primary));
+}
+
+.add-popup-course-dot {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--chip-color);
+}
+
+/* One line: a long title fades out at the edge and scrolls on hover instead
+   of wrapping (see header in my-courses.js). */
+.add-popup-title-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+}
+
+.add-popup-title .add-popup-course-dot {
+  width: 12px;
+  height: 12px;
+}
+
+/* A long name fades out toward the arrow instead of ending in "…", like a
+   Calendar pill's. */
+.add-popup-course-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent);
+}
+
+/* Only on hover. Hidden with opacity, not display, so its room stays put and
+   the name doesn't reflow as it appears. */
+.add-popup-course-chevron {
+  flex: none;
+  display: flex;
+  color: var(--color-gray-dark);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.add-popup-course:hover .add-popup-course-chevron,
+.add-popup-course--active .add-popup-course-chevron {
+  opacity: 1;
+}
+
+.add-popup-course-chevron svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* An underline rather than a box, like Google Calendar's title field: a thin
+   gray line at rest, and on focus a thicker one in the course's color that
+   grows out from the middle, animating its width without shifting anything. */
+.add-popup-input {
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 20px;
+  padding: 6px 2px 8px;
+  border: none;
+  border-radius: 0;
+  outline: none;
+  /* Both lines are backgrounds on the same bottom edge, so the colored one
+     covers the gray one instead of stacking under it. */
+  background:
+    linear-gradient(var(--chip-color), var(--chip-color)) bottom center / 0% 2px no-repeat,
+    linear-gradient(var(--color-gray-light), var(--color-gray-light)) bottom / 100% 1px no-repeat;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 20px;
+  transition: background-size 0.2s ease;
+}
+
+.add-popup-input::placeholder {
+  color: var(--color-gray-dark);
+}
+
+.add-popup-input:focus {
+  background-size: 100% 2px, 100% 1px;
+}
+
+/* "Due" on the left, its dropdown on the right. */
+.add-popup-due-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.add-popup-due-row .add-popup-label {
+  margin: 0 0 0 4px;
+}
+
+/* The icon sits at the far end. */
+.add-popup-date-btn {
+  flex: 0 1 250px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  /* Filled rather than outlined (the time list under it keeps its outline);
+     the padding makes up for the missing border, so the text still lines up
+     with the list's. */
+  padding: 9.5px 11.5px 9.5px 15.5px;
+  border: none;
+  border-radius: 12px;
+  background: var(--color-gray-lighter);
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* A slightly darker gray than at rest. */
+.add-popup-date-btn:hover {
+  background: color-mix(in srgb, var(--color-gray-dark) 12%, var(--color-gray-lighter));
+}
+
+.add-popup-date-btn-text {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.add-popup-date-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+/* The same gray date.png is drawn in. */
+.add-popup-date-btn svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: var(--color-gray-dark);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.add-popup-date-btn svg {
+  transition: transform 0.2s ease;
+}
+
+.add-popup-date-btn--open svg {
+  transform: rotate(180deg);
+}
+
+.add-popup-time-field {
+  margin-top: 10px;
+}
+
+/* Opens under the time button, the same width and lined up with it, pushing
+   the rest of the popup down rather than covering it. */
+.add-popup-time-options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-sizing: border-box;
+  width: 250px;
+  max-width: 100%;
+  margin: 6px 0 0 auto;
+  padding: 4px;
+  border: 1.5px solid var(--color-gray-lighter);
+  border-radius: 12px;
+}
+
+.add-popup-time-options[hidden] {
+  display: none;
+}
+
+.add-popup-time-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 36px;
+  box-sizing: border-box;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.add-popup-time-option[hidden] {
+  display: none;
+}
+
+.add-popup-time-option:hover {
+  background: var(--color-hover-overlay);
+}
+
+/* The chosen time in the course's color, as the date was. */
+.add-popup-time-option--selected,
+.add-popup-time-option--selected:hover {
+  background: color-mix(in srgb, var(--chip-color) 12%, var(--color-surface));
+  color: color-mix(in srgb, var(--chip-color) 35%, var(--color-text-primary));
+  font-weight: 600;
+}
+
+/* No border or clock icon; the time just sits in the row, on a light patch
+   once Custom is the chosen option. */
+.add-popup-time-input {
+  padding: 2px 6px;
+  border: none;
+  border-radius: 6px;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.add-popup-time-input::-webkit-calendar-picker-indicator {
+  display: none;
+}
+
+.add-popup-time-option--selected .add-popup-time-input {
+  background: rgba(255, 255, 255, 0.75);
+}
+
+/* Faint enough on a dark page to stay a patch, not a glare. */
+:root[data-theme="dark"] .add-popup-time-option--selected .add-popup-time-input {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.add-popup-date-label {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.add-popup-date-sub {
+  font-size: 13px;
+  color: var(--color-gray-dark);
+}
+
+.add-popup-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.add-popup-primary-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Filled with the course's color. The text picks black or white by that
+   color's lightness (the OKLCH trick: far past 0 or 1 clamps to the end), so
+   it stays readable on yellow as well as on dark blue. */
+.add-popup-primary-btn {
+  background: var(--chip-color);
+  color: oklch(from var(--chip-color) clamp(0, (0.78 - l) * 1000, 1) 0 0);
+}
+
+
+.add-popup-primary-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.add-popup-primary-btn:disabled {
+  background: var(--color-gray-lighter);
+  color: var(--color-gray-dark);
+  cursor: not-allowed;
+}
+
+/* "Pick another date" (see startDatePick): a dim layer over the whole page,
+   popup included, with the big calendar raised above it. Its pills fade back
+   so the days read as the thing to click. */
+.calendar-pick-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.calendar-pick-overlay--visible {
+  opacity: 1;
+}
+
+.my-courses-calendar-box--raised {
+  position: relative;
+  z-index: 80;
+}
+
+.my-courses-calendar-box .assessment-chip {
+  transition: opacity 0.2s ease;
+}
+
+.my-courses-calendar-box--picking .assessment-chip {
+  opacity: 0.5;
+}
+
+.my-courses-calendar-box--picking .assessment-week-day {
+  cursor: pointer;
+}
+
+/* The hovered day while picking gets a border in the course's darker shade,
+   reaching 1px out so it covers the gridline gap around the cell instead of
+   sitting inside it.
+   Drawn on ::after rather than as an outline so a day on the calendar's edge
+   can leave out that side: the card's own edge already bounds it. */
+.my-courses-calendar-box--picking .assessment-week-day:hover::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: 1;
+  border: 2px solid color-mix(in srgb, var(--chip-color) 35%, var(--color-text-primary));
+  pointer-events: none;
+}
+
+.my-courses-calendar-box--picking .assessment-week-day--first-row:hover::after {
+  top: 0;
+  border-top: none;
+}
+
+.my-courses-calendar-box--picking .assessment-week-day:nth-child(7n + 1):hover::after {
+  left: 0;
+  border-left: none;
+}
+
+.my-courses-calendar-box--picking .assessment-week-day:nth-child(7n):hover::after {
+  right: 0;
+  border-right: none;
+}
+
+.my-courses-calendar-box--picking .assessment-week-day:nth-last-child(-n + 7):hover::after {
+  bottom: 0;
+  border-bottom: none;
+}

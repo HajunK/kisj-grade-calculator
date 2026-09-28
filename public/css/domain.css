@@ -1,0 +1,434 @@
+.domain-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 71px);
+}
+
+.domain-loading[hidden] {
+  display: none;
+}
+
+.classes-container {
+  display: flex;
+  gap: 32px;
+  padding: 32px 48px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  scrollbar-color: var(--color-scrollbar-thumb) transparent;
+}
+
+.classes-container--scrolling {
+  scrollbar-width: thin;
+}
+
+.classes-container::-webkit-scrollbar {
+  height: 2px;
+}
+
+.classes-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Faded rather than display: none, so the transition has a real thumb to
+   animate. */
+.classes-container::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar-thumb);
+  border-radius: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.classes-container--scrolling::-webkit-scrollbar-thumb {
+  opacity: 1;
+}
+
+/* Same side padding as .classes-container so posts line up with the cards. */
+.domain-posts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 48px;
+}
+
+.domain-posts[hidden] {
+  display: none;
+}
+
+.domain-post-card {
+  background: var(--color-post-card-bg);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 14px 24px;
+}
+
+.domain-post-title {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.domain-post-body {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+}
+
+.domain-post-link {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.domain-post-link:hover {
+  text-decoration: underline;
+}
+
+.domain-empty-hint {
+  align-self: center;
+  flex: 0 0 300px;
+  margin: 0;
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 64px 32px;
+  text-align: center;
+  font-size: 22px;
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-card);
+}
+
+.domain-empty-hint-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--color-accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.class-card {
+  position: relative;
+  flex: 0 0 380px;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 24px 32px 32px;
+  /* A floor, not a hard height. .next-assessment-line takes from
+     .assessment-groups' locked height budget, shrinking Formatives/Summatives
+     rather than growing the card. */
+  min-height: 520px;
+  box-shadow: var(--shadow-card);
+}
+
+.card-hide-btn {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.class-card:hover .card-hide-btn {
+  opacity: 0.65;
+}
+
+/* Higher specificity than the rule above on purpose, so this wins once the
+   mouse is on the button. */
+.class-card:hover .card-hide-btn:hover {
+  opacity: 1;
+}
+
+.card-hide-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.class-name {
+  margin: 0 0 4px;
+  font-size: 28px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.grade-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 54px;
+  margin-bottom: 12px;
+}
+
+.letter-grade {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  /* Dragging near one of these would otherwise catch the icon in the selection
+     highlight, and <img> is draggable by default. */
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* The PNGs are white letters on transparent; the circle is this background,
+   colored by the icon's slug. */
+img[data-slug] {
+  border-radius: 50%;
+  background-color: var(--grade-color, transparent);
+}
+
+/* Grade -> color. The score label and domain summary carry the color too, so
+   their numbers can use it for the text selection color. */
+img[data-slug="a-plus"],
+.score-list label:has(img[data-slug="a-plus"]),
+.grade-summary:has(.letter-grade--lg:not(.letter-grade-lg-fade)[data-slug="a-plus"]),
+img[data-slug="a"],
+.score-list label:has(img[data-slug="a"]),
+.grade-summary:has(.letter-grade--lg:not(.letter-grade-lg-fade)[data-slug="a"]) {
+  --grade-color: var(--color-dark-blue);
+  --grade-highlight: var(--color-dark-blue-highlight);
+}
+img[data-slug="a-minus"],
+.score-list label:has(img[data-slug="a-minus"]),
+.grade-summary:has(.letter-grade--lg:not(.letter-grade-lg-fade)[data-slug="a-minus"]) { --grade-color: var(--color-light-blue); }
+img[data-slug="b-plus"],
+.score-list label:has(img[data-slug="b-plus"]),
+.grade-summary:has(.letter-grade--lg:not(.letter-grade-lg-fade)[data-slug="b-plus"]) { --grade-color: var(--color-teal); }
+img[data-slug="b"],
+.score-list label:has(img[data-slug="b"]),
+.grade-summary:has(.letter-grade--lg:not(.letter-grade-lg-fade)[data-slug="b"]) { --grade-color: var(--color-green); }
+img[data-slug="b-minus"],
+.score-list label:has(img[data-slug="b-minus"]),
+.grade-summary:has(.letter-grade--lg:not(.letter-grade-lg-fade)[data-slug="b-minus"]) { --grade-color: var(--color-lime); }
+img[data-slug="c-plus"],
+.score-list label:has(img[data-slug="c-plus"]),
+.grade-summary:has(.letter-grade--lg:not(.letter-grade-lg-fade)[data-slug="c-plus"]) { --grade-color: var(--color-yellow); }
+img[data-slug="c"],
+.score-list label:has(img[data-slug="c"]),
+.grade-summary:has(.letter-grade--lg:not(.letter-grade-lg-fade)[data-slug="c"]) { --grade-color: var(--color-amber); }
+img[data-slug="c-minus"],
+.score-list label:has(img[data-slug="c-minus"]),
+.grade-summary:has(.letter-grade--lg:not(.letter-grade-lg-fade)[data-slug="c-minus"]) { --grade-color: var(--color-orange); }
+img[data-slug="d-plus"],
+.score-list label:has(img[data-slug="d-plus"]),
+.grade-summary:has(.letter-grade--lg:not(.letter-grade-lg-fade)[data-slug="d-plus"]),
+img[data-slug="d"],
+.score-list label:has(img[data-slug="d"]),
+.grade-summary:has(.letter-grade--lg:not(.letter-grade-lg-fade)[data-slug="d"]),
+img[data-slug="d-minus"],
+.score-list label:has(img[data-slug="d-minus"]),
+.grade-summary:has(.letter-grade--lg:not(.letter-grade-lg-fade)[data-slug="d-minus"]),
+img[data-slug="f"],
+.score-list label:has(img[data-slug="f"]),
+.grade-summary:has(.letter-grade--lg:not(.letter-grade-lg-fade)[data-slug="f"]) { --grade-color: var(--color-f-red); }
+img[data-slug="ng"],
+.score-list label:has(img[data-slug="ng"]),
+.grade-summary:has(.letter-grade--lg:not(.letter-grade-lg-fade)[data-slug="ng"]) { --grade-color: var(--color-gray); }
+
+.letter-grade--lg {
+  width: 54px;
+  height: 54px;
+}
+
+/* A second stacked copy of the icon fades in over the old one so a tier change
+   crossfades instead of snapping (see crossfadeBadgeIcon). */
+.letter-grade-lg-wrap {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  flex-shrink: 0;
+}
+
+.letter-grade-lg-wrap .letter-grade--lg {
+  position: absolute;
+  inset: 0;
+}
+
+.letter-grade-lg-fade {
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+}
+
+.letter-grade--empty {
+  background: transparent;
+}
+
+/* Scoped to .score-list: .letter-grade is also the big domain badge. Clicking a
+   filled icon selects the whole score; an empty one is part of the row's
+   click-to-type area. */
+.score-list .letter-grade {
+  cursor: pointer;
+}
+
+.score-list .letter-grade--empty {
+  cursor: text;
+}
+
+/* Desaturated, not just faded, and the same gray for every grade, so it reads as
+   a muted placeholder rather than a dim real icon. */
+img.letter-grade--preview[data-slug] {
+  --grade-color: var(--color-gray-dark);
+  opacity: var(--preview-opacity);
+  filter: grayscale(1);
+}
+
+html[data-privacy-blur] .class-card .score-value,
+html[data-privacy-blur] .class-card .score-original {
+  filter: blur(4px);
+  transition: filter 0.2s ease, color 0.2s ease;
+}
+
+/* :not([data-empty]): a "--" placeholder has nothing to hide. */
+html[data-privacy-blur] .class-card .grade-value:not([data-empty]) {
+  filter: blur(6px);
+  transition: filter 0.2s ease, color 0.2s ease;
+}
+
+html[data-privacy-blur] .class-card .score-value,
+html[data-privacy-blur] .class-card .grade-value:not([data-empty]) {
+  color: var(--color-gray-dark);
+}
+
+html[data-privacy-blur] .class-card .score-list .letter-grade,
+html[data-privacy-blur] .class-card .letter-grade-lg-wrap {
+  filter: grayscale(1);
+  transition: filter 0.2s ease;
+}
+
+html[data-privacy-blur] .class-card .assessment-box:is(:hover, :focus-within) .score-value,
+html[data-privacy-blur] .class-card .assessment-box:is(:hover, :focus-within) .score-original,
+html[data-privacy-blur] .class-card .grade-summary:hover .grade-value {
+  filter: none;
+}
+
+html[data-privacy-blur] .class-card .assessment-box:is(:hover, :focus-within) .score-value,
+html[data-privacy-blur] .class-card .grade-summary:hover .grade-value {
+  color: var(--color-text-primary);
+}
+
+html[data-privacy-blur] .class-card li[data-reveal-score] .score-value,
+html[data-privacy-blur] .class-card li[data-reveal-score] .score-original {
+  filter: none;
+}
+
+html[data-privacy-blur] .class-card li[data-reveal-score] .score-value {
+  color: var(--color-text-primary);
+}
+
+html[data-privacy-blur] .class-card[data-reveal-domain] .grade-summary .grade-value {
+  filter: none;
+  color: var(--color-text-primary);
+}
+
+html[data-privacy-blur] .class-card[data-reveal-domain] .grade-summary .letter-grade-lg-wrap {
+  filter: none;
+}
+
+/* :not(--preview) keeps a live-typing preview icon's desaturation. */
+html[data-privacy-blur] .class-card .assessment-box:is(:hover, :focus-within) .score-list .letter-grade:not(.letter-grade--preview),
+html[data-privacy-blur] .class-card .grade-summary:hover .letter-grade-lg-wrap {
+  filter: none;
+}
+
+.grade-value {
+  font-size: 44px;
+  font-weight: var(--fw-grade-value);
+  color: var(--color-text-primary);
+}
+
+.grade-breakdown {
+  margin: 0 0 20px;
+  font-size: 15px;
+  font-weight: var(--fw-grade-breakdown);
+  color: var(--color-gray-dark);
+  /* The line's variants share one cell so its height doesn't change as they
+     swap. */
+  display: grid;
+}
+
+.breakdown-empty,
+.breakdown-values,
+.breakdown-single {
+  grid-area: 1 / 1;
+  opacity: 0;
+  filter: blur(4px);
+  visibility: hidden;
+  transition: opacity 250ms ease, filter 250ms ease, visibility 0s linear 250ms;
+}
+
+.grade-breakdown[data-state="empty"] .breakdown-empty,
+.grade-breakdown[data-state="values"] .breakdown-values,
+.grade-breakdown[data-state="single"] .breakdown-single {
+  opacity: 1;
+  filter: blur(0);
+  visibility: visible;
+  transition: opacity 250ms ease, filter 250ms ease, visibility 0s;
+}
+
+.grade-breakdown--instant .breakdown-empty,
+.grade-breakdown--instant .breakdown-values,
+.grade-breakdown--instant .breakdown-single {
+  transition: none !important;
+}
+
+/* Tightens the gap to .next-assessment-line when it shows something. It's a
+   descendant of the next sibling, not a direct next sibling. */
+html:not([data-hide-upcoming-assessments])
+  .grade-breakdown:has(+ .assessment-groups .next-assessment-line:not(:empty)) {
+  margin-bottom: 6px;
+}
+
+html[data-hide-breakdown] .grade-breakdown {
+  display: none;
+}
+
+html[data-hide-upcoming-assessments] .next-assessment-line {
+  display: none;
+}
+
+.grade-breakdown .divider {
+  margin: 0;
+  color: var(--color-gray-light);
+}
+
+.grade-breakdown .breakdown-value {
+  font-weight: var(--fw-breakdown-value);
+  color: var(--color-text-primary);
+}
+
+.next-assessment-line {
+  /* 0 0 auto keeps this at one line, so Formatives/Summatives shrink to make
+     room. */
+  flex: 0 0 auto;
+  margin: 0 0 20px;
+  font-size: 15px;
+  font-weight: var(--fw-grade-breakdown);
+  color: var(--color-gray-dark);
+}
+
+.next-assessment-line-date {
+  font-weight: var(--fw-breakdown-value);
+  color: var(--color-text-primary);
+}
+
+.next-assessment-line:empty {
+  display: none;
+}

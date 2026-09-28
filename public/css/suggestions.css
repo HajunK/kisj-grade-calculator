@@ -1,0 +1,136 @@
+.suggestions-card {
+  width: 100%;
+  max-width: 800px;
+  height: 654px;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 24px 32px 32px;
+  box-shadow: var(--shadow-card);
+}
+
+.suggestions-card[hidden] {
+  display: none;
+}
+
+.suggestions-title {
+  flex-shrink: 0;
+  margin: 0 0 20px;
+  font-size: 28px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.suggestions-empty {
+  margin: 0;
+  font-size: 15px;
+  color: var(--color-gray-dark);
+}
+
+.suggestions-list {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.suggestions-list[hidden] {
+  display: none;
+}
+
+.suggestions-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 100px 70px 1.6fr 190px;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 0;
+}
+
+.suggestions-row--header {
+  flex-shrink: 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-gray-lighter);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-gray-dark);
+}
+
+.suggestions-row--header .suggestions-cell--emails {
+  color: var(--color-text-primary);
+}
+
+.suggestions-rows {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.suggestions-rows .suggestions-row {
+  border-bottom: 1px solid var(--color-gray-lighter);
+}
+
+.suggestions-rows .suggestions-row:last-child {
+  border-bottom: none;
+}
+
+.suggestions-cell {
+  min-width: 0;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  overflow-wrap: break-word;
+}
+
+.suggestions-cell--count {
+  text-align: center;
+}
+
+.suggestions-cell--emails {
+  color: var(--color-gray-dark);
+}
+
+/* Blurred until you're looking at that row, not just glancing down the column. */
+.suggestions-rows .suggestions-cell--emails {
+  filter: blur(4px);
+  transition: filter 0.15s ease;
+}
+
+.suggestions-rows .suggestions-row:hover .suggestions-cell--emails {
+  filter: blur(0);
+}
+
+.suggestions-cell--actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.suggestions-accept-btn,
+.suggestions-decline-btn {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.suggestions-accept-btn {
+  background: var(--color-accent);
+  color: #ffffff;
+}
+
+.suggestions-accept-btn:hover {
+  opacity: 0.9;
+}
+
+.suggestions-decline-btn {
+  background: var(--color-gray-lighter);
+  color: var(--color-text-primary);
+}
+
+.suggestions-decline-btn:hover {
+  background: linear-gradient(var(--color-hover-overlay), var(--color-hover-overlay)), var(--color-gray-lighter);
+}

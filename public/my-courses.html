@@ -38,7 +38,21 @@
     href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap"
     rel="stylesheet"
   />
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/nav.css" />
+  <link rel="stylesheet" href="css/controls.css" />
+  <link rel="stylesheet" href="css/floating.css" />
+  <link rel="stylesheet" href="css/dialogs.css" />
+  <link rel="stylesheet" href="css/settings.css" />
+  <link rel="stylesheet" href="css/my-courses-popup.css" />
+  <link rel="stylesheet" href="css/calendar.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="stylesheet" href="css/domain.css" />
+  <link rel="stylesheet" href="css/domain-scores.css" />
+  <link rel="stylesheet" href="css/gpa.css" />
+  <link rel="stylesheet" href="css/suggestions.css" />
+  <link rel="stylesheet" href="css/grade-protection.css" />
   <link rel="stylesheet" href="css/theme.css" />
 </head>
 <body>
@@ -57,8 +71,6 @@
     <!-- Hidden by default and only revealed once at least one period has
          a course typed in — nothing to show a calendar for otherwise. -->
     <div class="my-courses-calendar" id="my-courses-calendar-card" hidden>
-      <!-- The white box is just the grid, edge to edge — the weekday names
-           live inside the first row's own cells (see buildDayCell). -->
       <div class="my-courses-calendar-box">
         <!-- Shown until the assessments collection actually loads — the
              calendar stays hidden until then, rather than showing an
@@ -67,6 +79,37 @@
           <span class="assessment-calendar-spinner"></span>
         </div>
         <div class="assessment-calendar-weeks" id="assessment-cal-weeks" hidden></div>
+      </div>
+      <div class="calendar-side">
+        <section class="calendar-side-card todo-card">
+          <div class="todo-card-header">
+            <h2 class="todo-card-title">Upcoming</h2>
+            <button type="button" class="todo-add-btn" id="add-assessment-trigger-btn" aria-label="Add to calendar">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3.5v13M3.5 10h13" /></svg>
+            </button>
+          </div>
+          <ul class="upcoming-list" id="upcoming-list"></ul>
+          <!-- A blurred copy of the list, shown where it scrolls up under the
+               header; see .upcoming-blur in calendar.css. inert, so its
+               copied buttons can't be tabbed to or clicked. -->
+          <div class="upcoming-blur" aria-hidden="true" inert></div>
+        </section>
+        <section class="calendar-side-card calendar-legend-card">
+          <div class="calendar-legend-column">
+            <span class="calendar-legend-label">Show on Calendar</span>
+            <div class="calendar-filter-list" id="calendar-filter-list">
+              <button type="button" class="calendar-filter calendar-filter--filled" data-category="summative">Summatives</button>
+              <button type="button" class="calendar-filter calendar-filter--filled" data-category="reassessment">Reassessments</button>
+              <button type="button" class="calendar-filter calendar-filter--dashed" data-category="formative">Formatives</button>
+              <button type="button" class="calendar-filter" data-category="assignment">Assignments</button>
+            </div>
+          </div>
+          <div class="calendar-legend-divider"></div>
+          <div class="calendar-legend-column">
+            <span class="calendar-legend-label">Course Colors</span>
+            <ul class="course-color-list" id="course-color-list"></ul>
+          </div>
+        </section>
       </div>
     </div>
   </div>

@@ -1,0 +1,477 @@
+.admin-not-authorized {
+  max-width: 480px;
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 32px;
+  box-shadow: var(--shadow-card);
+  font-size: 17px;
+  color: var(--color-text-primary);
+}
+
+.admin-calendar-layout {
+  display: flex;
+  align-items: stretch;
+  gap: 32px;
+}
+
+.admin-calendar-layout .assessment-calendar-card {
+  height: 600px;
+}
+
+/* Only here: the Add Missing Assessment calendar shares this class at 26px. */
+.admin-calendar-layout .assessment-calendar-day-number--today {
+  width: 30px;
+  height: 30px;
+}
+
+/* Height matches .assessment-calendar-card explicitly, not just via
+   align-items: stretch, so a long entry list has a bound to scroll against
+   instead of pushing the panel taller. */
+.admin-day-panel {
+  flex: 1;
+  min-width: 320px;
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 24px 32px 32px;
+  box-shadow: var(--shadow-card);
+}
+
+.posts-admin-panel {
+  flex: none;
+  width: 100%;
+  max-width: 500px;
+}
+
+.admin-day-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.admin-day-panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-schedule-open-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-gray-dark);
+  cursor: pointer;
+}
+
+.admin-schedule-open-btn:hover {
+  background: var(--color-gray-lighter);
+  color: var(--color-text-primary);
+}
+
+.admin-schedule-open-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.admin-day-panel-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.admin-day-entry-list {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollbar-thumb) transparent;
+}
+
+.admin-day-entry-list[hidden] {
+  display: none;
+}
+
+.admin-day-entry-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.admin-day-entry-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-day-entry-list::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar-thumb);
+  border-radius: 4px;
+}
+
+.admin-day-entry-empty {
+  font-size: 14px;
+  color: var(--color-gray-dark);
+}
+
+.admin-day-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+.admin-day-entry + .admin-day-entry {
+  border-top: 1px solid var(--color-gray-lighter);
+}
+
+.admin-day-entry-name {
+  flex: 1;
+  font-size: 15px;
+  color: var(--color-text-primary);
+}
+
+.admin-day-entry-delete {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-gray-dark);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.admin-day-entry-delete:hover {
+  background: var(--color-gray-lighter);
+  color: var(--color-text-primary);
+}
+
+.posts-input {
+  font: inherit;
+  font-size: 15px;
+  color: var(--color-text-primary);
+  background: var(--color-gray-lighter);
+  border: none;
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.posts-input:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.posts-textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+
+.posts-empty {
+  font-size: 14px;
+  color: var(--color-gray-dark);
+}
+
+.posts-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 0;
+}
+
+.posts-entry + .posts-entry {
+  border-top: 1px solid var(--color-gray-lighter);
+}
+
+.posts-entry-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.posts-entry-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.posts-entry-body {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--color-gray-dark);
+  white-space: pre-wrap;
+}
+
+.posts-entry-link {
+  font-size: 13px;
+  color: var(--color-accent);
+  word-break: break-all;
+}
+
+.admin-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-gray-lighter);
+}
+
+.admin-add-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-add-field[hidden] {
+  display: none;
+}
+
+.admin-add-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-gray-dark);
+}
+
+.admin-course-field {
+  height: 50px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--color-gray-light);
+}
+
+/* Matches the form's other controls' fixed height; display: flex so the bar
+   stretches when the "Other" input needs room. Stretch, not center, so each
+   option (and its hover pill) fills the bar's height like the sliding thumb
+   does, instead of sitting shorter inside it. */
+#admin-type-toggle {
+  height: 50px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: stretch;
+}
+
+.admin-type-other-input {
+  height: 100%;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  padding: 0 12px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 15px;
+}
+
+.admin-type-other-input:focus {
+  outline: none;
+}
+
+.admin-add-submit-btn {
+  height: 50px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: #ffffff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-add-submit-btn:hover {
+  opacity: 0.9;
+}
+
+.admin-schedule-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-schedule-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-schedule-row-label {
+  flex: 1;
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+.admin-schedule-row-sep {
+  color: var(--color-gray-dark);
+}
+
+.admin-schedule-time-input {
+  /* Fixed width: a typed value's width shifts slightly ("AM" vs "PM"), which
+     moved the "--" placeholder from box to box. */
+  width: 110px;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-gray-lighter);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 14px;
+}
+
+/* Redundant next to .admin-schedule-open-icon; hidden in WebKit/Blink (Firefox
+   never draws one). */
+.admin-schedule-time-input::-webkit-calendar-picker-indicator {
+  display: none;
+}
+
+.admin-schedule-time-input:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.admin-schedule-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.admin-schedule-overlay--visible {
+  opacity: 1;
+}
+
+.admin-schedule-dialog {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  max-height: 75vh;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--color-surface);
+  border-radius: calc(24px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 32px;
+  box-shadow: 0 8px 24px var(--color-shadow-popover);
+  opacity: 0;
+  transform: translateY(100vh);
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.admin-schedule-dialog::-webkit-scrollbar {
+  display: none;
+}
+
+.admin-schedule-dialog--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.admin-schedule-close-btn {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  color: var(--color-gray-dark);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.admin-schedule-close-btn:hover {
+  color: var(--color-text-primary);
+}
+
+.admin-schedule-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.admin-schedule-save-btn {
+  height: 44px;
+  width: 100%;
+  margin-top: 8px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: #ffffff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-schedule-save-btn:hover {
+  opacity: 0.9;
+}
+
+/* The light fill of a filled Calendar pill, on the days testing blocks fall,
+   joined down each Monday and Friday column into one strip: square corners
+   between days, and a shadow the height of the grid's row gap filling the gap
+   below each day but the last. */
+#admin-cal-grid.admin-cal-grid--testing-block {
+  --block-day-fill: oklch(from color-mix(in oklch, var(--color-dark-blue) 22%, var(--color-surface)) l calc(c * 1.8) h);
+}
+
+#admin-cal-grid.admin-cal-grid--testing-block .assessment-calendar-day--block-day {
+  border-radius: 0;
+}
+
+#admin-cal-grid.admin-cal-grid--testing-block .assessment-calendar-day--block-day:not(.assessment-calendar-day--selected) {
+  background: var(--block-day-fill);
+}
+
+#admin-cal-grid.admin-cal-grid--testing-block .assessment-calendar-day--block-day:not(.assessment-calendar-day--block-day-last) {
+  box-shadow: 0 6px 0 0 var(--block-day-fill);
+}
+
+#admin-cal-grid.admin-cal-grid--testing-block .assessment-calendar-day--block-day-first {
+  border-top-left-radius: calc(10px * var(--squircle-scale));
+  border-top-right-radius: calc(10px * var(--squircle-scale));
+}
+
+#admin-cal-grid.admin-cal-grid--testing-block .assessment-calendar-day--block-day-last {
+  border-bottom-left-radius: calc(10px * var(--squircle-scale));
+  border-bottom-right-radius: calc(10px * var(--squircle-scale));
+}

@@ -1,0 +1,21 @@
+:root {
+  --squircle-scale: 1;
+}
+
+/* Feature-detected rather than browser-sniffed: radii only scale up where
+   corner-shape: squircle actually renders. */
+@supports (corner-shape: squircle) {
+  :root {
+    --squircle-scale: 2;
+  }
+}
+
+:root {
+  --fw-class-name: 500;
+  --fw-grade-value: 600;
+  --fw-grade-breakdown: 400;
+  --fw-breakdown-value: 400;
+  --fw-assessment-label: 500;
+
+  --color-hover-overlay: color-mix(in srgb, var(--color-gray-light) 50%, transparent);
+}

@@ -1,0 +1,199 @@
+.segmented-control {
+  position: relative;
+  /* Own stacking context, so the layers below stack among themselves and
+     nothing else. */
+  isolation: isolate;
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--color-gray-lighter);
+  border-radius: 999px;
+}
+
+.segmented-control[hidden] {
+  display: none;
+}
+
+/* One element that slides between options instead of each snapping on and off.
+   Layered above the options' hover backgrounds and below their text, so it
+   slides over a hovered option and covers it. */
+.segmented-thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  z-index: -1;
+  border-radius: 999px;
+  background: var(--color-segment-active);
+  transition: left 0.2s ease, width 0.2s ease;
+}
+
+/* Deliberately not a stacking context, so ::before can sit under the thumb
+   while the label sits above it. */
+.segmented-option {
+  position: relative;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Hover background lives here, not on the button, so the thumb can layer above
+   it. */
+.segmented-option::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  border-radius: inherit;
+  background: transparent;
+}
+
+.segmented-option:hover:not(.segmented-option--active)::before {
+  background: var(--color-hover-overlay);
+}
+
+.segmented-option--active {
+  color: #111111;
+}
+
+/* Clicking a hovered option makes it active at once, but its hover background
+   lingers for the thumb's 0.2s slide (the delay below), so the thumb travels
+   over it instead of the gray vanishing as it starts moving. */
+.segmented-option--active::before {
+  transition: background-color 0s linear 0.2s;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  width: 44px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--color-gray-light);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.toggle-slider::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 18px;
+  height: 18px;
+  background: var(--color-surface);
+  border-radius: 50%;
+  transition: transform 0.15s ease;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background: var(--color-accent);
+}
+
+/* In dark mode, the same light blue as the selected option in the segmented
+   controls beside them. */
+:root[data-theme="dark"] .toggle-switch input:checked + .toggle-slider {
+  background: var(--color-segment-active);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+}
+
+.toggle-switch input:focus-visible + .toggle-slider {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Applied while settings load a saved state, so switches that are already on
+   don't animate in from off at page load. */
+.toggle-switch--instant .toggle-slider,
+.toggle-switch--instant .toggle-slider::before {
+  transition: none;
+}
+
+.division-picker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.division-picker[hidden] {
+  display: none;
+}
+
+/* Absolute, so it overlays above the circles rather than pushing them down. */
+.division-picker-label {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--color-gray-dark);
+  white-space: nowrap;
+}
+
+.division-option {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-gray-lighter);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.division-option:hover:not(.division-option--selected) {
+  background: var(--color-gray-light);
+}
+
+/* --chip-color is the course's calendar color, when it has one (see
+   syncDivisionPicker). The text picks black or white by that color's
+   lightness, as on the Add popup's button, so it stays readable on yellow. */
+.division-option--selected {
+  background: var(--chip-color, var(--color-accent));
+  color: oklch(from var(--chip-color, var(--color-accent)) clamp(0, (0.78 - l) * 1000, 1) 0 0);
+}
+
+/* icons/close.svg, used as a mask so it takes its button's text color (dark
+   gray, darkening on hover) in either theme instead of the file's own black.
+   Sized in em, so each button's old font-size for the "×" still sets how big
+   its X is. */
+.close-icon {
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  vertical-align: middle;
+  background-color: currentColor;
+  -webkit-mask: url("../icons/close.svg") center / contain no-repeat;
+  mask: url("../icons/close.svg") center / contain no-repeat;
+}

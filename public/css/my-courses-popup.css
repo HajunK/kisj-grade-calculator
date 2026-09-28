@@ -1,0 +1,180 @@
+.my-courses-modal-card {
+  flex: 0 0 520px;
+  /* Rows already carry their own vertical padding; the card's gap would double
+     the spacing. */
+  gap: 0;
+}
+
+/* Needs its own spacing now that the card's gap is 0. */
+.my-courses-modal-card .settings-divider {
+  margin: 6px 0;
+}
+
+/* Needs its own spacing now that the card's gap is 0. */
+.my-courses-modal-card .settings-title {
+  margin-bottom: 8px;
+}
+
+.schedule-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 10px 0;
+  /* The whole row shows the text cursor so its padding feels part of the field. */
+  cursor: text;
+}
+
+/* Every "Period N" is the same 8 characters, so a fixed width never reflows row
+   to row. */
+.schedule-label {
+  flex: 0 0 78px;
+  font-size: 17px;
+  font-weight: var(--fw-assessment-label);
+  color: var(--color-gray-dark);
+  text-align: left;
+}
+
+/* A regular flex item after the field (and division picker), so
+   .schedule-field's flex: 1 shrinks to make room instead of overlapping. */
+.show-course-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.show-course-btn[hidden] {
+  display: none;
+}
+
+.show-course-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.schedule-field {
+  position: relative;
+  flex: 1;
+  border-radius: 10px;
+  padding: 6px 10px;
+  transition: background-color 0.15s ease;
+}
+
+/* :focus-within keeps the selected field lit wherever the mouse is. */
+.schedule-row:hover .schedule-field,
+.schedule-field:focus-within {
+  background: var(--color-gray-lighter);
+}
+
+.schedule-input {
+  width: 100%;
+  font: inherit;
+  font-size: 22px;
+  color: var(--color-text-primary);
+  border: none;
+  background: transparent;
+  padding: 0 26px 0 0;
+  margin: 0;
+}
+
+.schedule-input::placeholder {
+  color: var(--color-gray-light);
+}
+
+.schedule-input:focus {
+  outline: none;
+}
+
+.schedule-clear-btn {
+  display: none;
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: none;
+  color: var(--color-gray-dark);
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.schedule-row:hover .schedule-field.has-value .schedule-clear-btn {
+  display: flex;
+}
+
+.schedule-dropdown {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--color-surface);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px var(--color-shadow-popover);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.schedule-dropdown:empty {
+  display: none;
+}
+
+/* Moved to <body> and positioned in JS so the popup's edges don't clip it;
+   above .settings-modal-overlay (z-index 200). */
+.schedule-dropdown--floating {
+  position: fixed;
+  z-index: 300;
+  right: auto;
+  box-sizing: border-box;
+}
+
+.schedule-dropdown-item {
+  position: relative;
+  padding: 8px 12px;
+  font-size: 17px;
+  color: var(--color-text-primary);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.schedule-dropdown-item:hover,
+.schedule-dropdown-item--highlighted {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.schedule-dropdown-item--highlighted::after,
+.schedule-dropdown:not(:has(.schedule-dropdown-item--highlighted)) .schedule-dropdown-item:first-child::after {
+  content: "Enter";
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-gray-lighter);
+  color: var(--color-gray-dark);
+  font-size: 12px;
+}
+
+/* White badge so it stays legible on the blue highlight. */
+.schedule-dropdown-item--highlighted::after {
+  background: var(--color-surface);
+}

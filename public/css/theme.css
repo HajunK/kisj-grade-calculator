@@ -1,10 +1,82 @@
-/* Dark mode. Set on <html> (data-theme="dark") by theme.js, from the
-   user's cloud-saved preference, before the rest of the page renders.
-   Grouped to mirror style.css's :root — only override what needs to
-   change for this theme; anything not listed here just inherits the
-   light-mode value from style.css. */
+/* Theme colors. The plain :root block is the light theme and doubles as the
+   default if data-theme is ever missing; the dark block below overrides only
+   what differs. data-theme is set on <html> before first paint to avoid a
+   flash. */
+:root {
+  --color-background: #e8ebf1;
+  --color-surface: #ffffff;
+  --color-text-primary: #111111;
+  --color-gray-dark: #828282;
+  --color-gray-light: #c3c9d6;
+  --color-gray-lighter: #eeeeee;
+
+  /* The light theme's dark-blue; dark mode sets its own (below). */
+  --color-accent: var(--color-dark-blue);
+  /* Text on a solid accent background. */
+  --color-on-accent: #ffffff;
+  --color-accent-soft: #e6edff;
+
+  --color-tab-accent: #3a3a3a;
+  --color-tab-accent-soft: #dde0e0;
+  --color-tab-accent-strong: #2b2b2b;
+
+  --color-divider-on-background: rgba(0, 0, 0, 0.15);
+  --color-scrollbar-thumb: rgba(0, 0, 0, 0.3);
+  --color-shadow: rgba(149, 157, 165, 0.3);
+  /* Kept faint on purpose: a tight contact shadow plus one small soft one with
+     negative spread hugs the card's underside instead of blooming around it.
+     Slate-tinted for the bluish page. Off in dark mode (below). */
+  --shadow-card:
+    0 1px 2px rgba(30, 41, 59, 0.07),
+    0 6px 14px -4px rgba(30, 41, 59, 0.10);
+  --color-shadow-popover: rgba(149, 157, 165, 0.3);
+  --color-popover-outline: rgba(15, 23, 42, 0.28);
+  /* The menus' edge: thicker than the pickers' hairline, so fainter. */
+  --color-popup-outline: rgba(15, 23, 42, 0.12);
+  --color-focus-highlight: rgba(0, 41, 107, 0.08);
+  --preview-opacity: 0.35;
+  /* Same in both themes, so the dark block doesn't override it. */
+  --color-segment-active: #90c2ff;
+
+  --color-filter-check: #828282;
+  --color-filter-fill: #eeeeee;
+  --color-filter-border: #a8a8a8;
+  --color-filter-text: #111111;
+
+  /* Named by hue, not by use: grades pick theirs in domain.css, courses in
+     COURSE_COLOR_PALETTE (my-courses.js). */
+  --color-dark-blue: #1051cf;
+  --color-light-blue: #0a98ff;
+  --color-teal: #21bbb6;
+  --color-green: #00bb61;
+  --color-lime: #b3dd27;
+  --color-true-green: #5cbf2a;
+  --color-yellow: #ffc925;
+  --color-amber: #ffad32;
+  --color-orange: #ff893e;
+  /* Only for the F letter grade (domain.css); not offered as a course color. */
+  --color-f-red: #f64949;
+  --color-red: #d80032;
+  --color-rose: #f83662;
+  --color-purple: #b05ee0;
+  --color-pink: #e8508f;
+  --color-indigo: #5b4fe0;
+  --color-cyan: #00a9c7;
+  --color-magenta: #d63fc4;
+  --color-coral: #ff6f59;
+  --color-brown: #a0673a;
+  --color-slate: #5f7389;
+  --color-gray: #767676;
+  /* Text highlight for dark-blue grades: dark-blue itself reads as a dull
+     slate once faded, so this is a lighter, more vivid blue that still stays
+     clearly apart from light-blue's sky tint. */
+  --color-dark-blue-highlight: #4a6bff;
+  /* Deliberately not --color-surface, so posts read as quieter than the class
+     cards above them. */
+  --color-post-card-bg: #d6d6d6;
+}
+
 :root[data-theme="dark"] {
-  /* Core palette */
   --color-background: #121212;
   --color-surface: #363636;
   --color-text-primary: #ffffff;
@@ -12,61 +84,62 @@
   --color-gray-light: #808080;
   --color-gray-lighter: #464646;
 
-  /* Accent (dropdown hover, focus outlines) */
-  --color-accent: #ffffff;
+  /* Its own blue here, a touch brighter than dark mode's --color-dark-blue,
+     rather than following it as the light theme's does. */
+  --color-accent: #2f6bff;
   --color-accent-soft: #5a5a5a;
-  --color-accent-strong: #2b8aff;
 
-  /* Tab bar accent (active tab) */
   --color-tab-accent: #ffffff;
   --color-tab-accent-soft: #272727;
   --color-tab-accent-strong: #ffffff;
 
-  /* Misc */
   --color-divider-on-background: rgba(255, 255, 255, 0.15);
   --color-scrollbar-thumb: rgba(255, 255, 255, 0.3);
   --color-focus-highlight: rgba(174, 225, 255, 0.08);
 
-  /* Shadows — flat cards drop theirs entirely (a dark shadow barely reads
-     against an already-near-black page). Dropdowns/the date calendar keep
-     a shadow (they're floating above other content, not flush against the
-     page), just a lighter, subtler one than the light-mode default. */
+  /* A dark shadow barely reads on a near-black page, so flat cards drop theirs.
+     Floating popovers keep a lighter one since they sit above other content. */
   --color-shadow: transparent;
-  --shadow-card: none;
-
-  /* Letter-grade circle backgrounds, dark-mode set (see img[data-slug] in
-     style.css). */
-  --grade-a: #1d65f1;
-  --grade-a-minus: #00c2ff;
-  --grade-b-plus: #33d9c0;
-  --grade-b: #00e376;
-  --grade-b-minus: #aee100;
-  --grade-c-plus: #efda19;
-  --grade-c: #ffb12d;
-  --grade-c-minus: #ff8b49;
-  --grade-d: #ff6161;
+  /* A transparent shadow rather than none, so it can still be listed alongside
+     other shadows (a hairline, say) in one box-shadow. */
+  --shadow-card: 0 0 0 transparent;
   --color-shadow-popover: rgba(255, 255, 255, 0.08);
+  --color-popover-outline: rgba(255, 255, 255, 0.3);
+  --color-popup-outline: rgba(255, 255, 255, 0.14);
 
-  /* A grayscale icon at the same opacity reads dimmer against the darker
-     surface here, so it's bumped up slightly to stay as legible as it is
-     in light mode. */
+  /* Muted a step below the light theme's contrast, which glares on a dark
+     surface; the circle stays light enough for the black check. */
+  --color-filter-check: #a3a3a3;
+  --color-filter-fill: #404040;
+  --color-filter-border: #6e6e6e;
+  --color-filter-text: #ececec;
+
+  --color-dark-blue: #1d65f1;
+  --color-light-blue: #00c2ff;
+  --color-teal: #33d9c0;
+  --color-green: #00e376;
+  --color-lime: #aee100;
+  --color-true-green: #74d63c;
+  --color-yellow: #efda19;
+  --color-amber: #ffb12d;
+  --color-orange: #ff8b49;
+  --color-f-red: #ff6161;
+  --color-red: #f0284f;
+  --color-rose: #ff5c80;
+  --color-purple: #c77dff;
+  --color-pink: #ff6fae;
+  --color-indigo: #7d74ff;
+  --color-cyan: #22d3ee;
+  --color-magenta: #f062dc;
+  --color-coral: #ff8a78;
+  --color-brown: #c98a58;
+  --color-slate: #8ea3ba;
+
+  /* The same opacity reads dimmer on the darker surface. */
   --preview-opacity: 0.45;
 
-  /* Gray reads as "dim" rather than "glowing" against a near-black page —
-     white is what actually looks like a glow here, but solid white was
-     too strong; translucent instead so it's a soft halo, not a hard ring. */
-  --color-avatar-glow: rgba(255, 255, 255, 0.35);
 
-  /* Between the page background (#121212) and --color-surface (#363636)
-     — a dark gray of its own, not a lighter one, so it still reads as
-     understated rather than becoming a brighter card than the ones above. */
+  /* Its own dark gray between the page and --color-surface, so posts stay
+     quieter than the cards instead of becoming brighter than them. */
   --color-post-card-bg: #262626;
-}
-
-/* Light mode casts this one 2px toward the bottom (see style.css) — in
-   dark mode that reads as lopsided/longer on the bottom edge against the
-   near-black page, so drop the offset here and let it spread evenly
-   instead. Light mode is untouched. */
-:root[data-theme="dark"] .formative-link-btn {
-  box-shadow: 0 0 6px var(--color-shadow-popover);
 }

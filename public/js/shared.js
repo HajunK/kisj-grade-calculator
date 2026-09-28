@@ -28,7 +28,7 @@ function themeFolder() {
 }
 
 // Letter-only PNGs (white, transparent) — the colored circle behind each is
-// drawn in CSS from the img's data-slug (see img[data-slug] in style.css),
+// drawn in CSS from the img's data-slug (see img[data-slug] in domain.css),
 // which is what makes them theme-aware, not separate light/dark files.
 function gradeIconPath(slug) {
   return `grade-icons/${slug}.png`;
@@ -115,11 +115,57 @@ function measureCharWidths(referenceEl, text) {
 // to be — and "blur" for a live change once the page has actually
 // settled, which blurs a value into focus the moment it turns from blank
 // ("-") to real, or otherwise rolls normally like any other live update.
+// Where a roll still in progress is right now, read off how far each digit
+// strip has scrolled. positions[i] is that character's digit as a fraction
+// (5.3 = a 5 three-tenths of the way to 6), or null for a "." or "-"; widths[i]
+// is its slot's width at this moment. text is the same thing rounded, for
+// measuring widths. null when nothing is mid-roll.
+function midRollState(element) {
+  if (!numberAnimations.has(element)) return null;
+  let text = "";
+  const positions = [];
+  const widths = [];
+  const leaving = [];
+  for (const child of element.children) {
+    // A digit already shrinking away isn't part of the number anymore, but
+    // it's kept so it can finish shrinking instead of vanishing.
+    if (child.dataset.rollLeaving) {
+      const style = getComputedStyle(child);
+      leaving.push({ text: child.textContent, width: parseFloat(style.width), opacity: parseFloat(style.opacity) });
+      continue;
+    }
+    widths.push(parseFloat(getComputedStyle(child).width));
+    const strip = child.firstElementChild;
+    if (!strip) {
+      text += child.textContent;
+      positions.push(null);
+      continue;
+    }
+    const slotHeight = parseFloat(child.style.height);
+    const transform = getComputedStyle(strip).transform;
+    const offsetY = transform === "none" ? 0 : new DOMMatrixReadOnly(transform).m42;
+    const index = Math.min(strip.children.length - 1, Math.max(0, -offsetY / slotHeight));
+    // Strip entries always count up by one, so the digit keeps counting up
+    // through the fraction between two entries.
+    const position = (Number(strip.children[Math.floor(index)].textContent) + (index - Math.floor(index))) % 10;
+    positions.push(position);
+    text += String(Math.round(position) % 10);
+  }
+  return text ? { text, positions, widths, leaving } : null;
+}
+
 function animateNumberChange(element, newText, revealStyle) {
   if (element.dataset.rollValue === newText) return;
 
-  // Roll forward from whatever was showing before, not from 0.
-  const oldText = element.dataset.rollValue !== undefined ? element.dataset.rollValue : element.textContent;
+  // Roll forward from whatever is showing, not from 0. A roll still under way
+  // is picked up from exactly where its digits are, heading for the new target,
+  // rather than snapping to its old target first.
+  const midRoll = midRollState(element);
+  const oldText = midRoll
+    ? midRoll.text
+    : element.dataset.rollValue !== undefined
+      ? element.dataset.rollValue
+      : element.textContent;
 
   // Cancels an earlier roll's own pending cleanup (see the setTimeout
   // below) and undoes the inline display it sets mid-roll — without this,
@@ -132,7 +178,7 @@ function animateNumberChange(element, newText, revealStyle) {
   element.style.display = "";
   element.style.alignItems = "";
 
-  if (!window.animationsEnabled() || revealStyle === "instant") {
+  if (revealStyle === "instant") {
     element.dataset.rollValue = newText;
     element.textContent = newText;
     return;
@@ -190,6 +236,31 @@ function animateNumberChange(element, newText, revealStyle) {
   }
 
   let maxDelay = 0;
+  const continuing = Boolean(midRoll);
+
+  // Integer digits the new number no longer has (e.g. the "1" when 100 ->
+  // 99) shrink to nothing and fade, instead of vanishing on the first frame.
+  // Ones still shrinking from an interrupted roll carry on from where they are.
+  const leavingDigits = continuing ? midRoll.leaving.slice() : [];
+  for (let oldIndex = 0; oldIndex < oldIntLen - newIntLen; oldIndex++) {
+    leavingDigits.push({
+      text: oldText[oldIndex],
+      width: continuing ? midRoll.widths[oldIndex] : oldWidths[oldIndex],
+      opacity: 1,
+    });
+  }
+  const leavingCurve = continuing ? "cubic-bezier(0.33, 1, 0.68, 1)" : "cubic-bezier(0.65, 0, 0.35, 1)";
+  leavingDigits.forEach(({ text, width, opacity }) => {
+    const leaving = document.createElement("span");
+    leaving.dataset.rollLeaving = "true";
+    leaving.style.cssText = `display:inline-block; overflow:hidden; height:${slotHeight}px; line-height:${slotHeight}px; width:${width}px; opacity:${opacity}; text-align:center; transition:none;`;
+    leaving.textContent = text;
+    element.appendChild(leaving);
+    void leaving.offsetWidth; // commit the starting width before transitioning away from it
+    leaving.style.transition = `width ${ROLL_DURATION_MS}ms ${leavingCurve}, opacity ${ROLL_DURATION_MS}ms ${leavingCurve}`;
+    leaving.style.width = "0px";
+    leaving.style.opacity = "0";
+  });
 
   newText.split("").forEach((ch, i) => {
     if (!/[0-9]/.test(ch)) {
@@ -206,27 +277,42 @@ function animateNumberChange(element, newText, revealStyle) {
     const oldChar = oldIndex >= 0 && oldIndex < oldText.length ? oldText[oldIndex] : undefined;
     const hasOldDigit = /[0-9]/.test(oldChar);
 
-    const delay = i * ROLL_STAGGER_MS;
+    // A continued roll is already moving, so it skips the stagger and starts
+    // fast then eases out, reading as one motion instead of a fresh start.
+    const delay = continuing ? 0 : i * ROLL_STAGGER_MS;
     maxDelay = Math.max(maxDelay, delay);
-    const easing = `${ROLL_DURATION_MS}ms cubic-bezier(0.65, 0, 0.35, 1) ${delay}ms`;
+    const curve = continuing ? "cubic-bezier(0.33, 1, 0.68, 1)" : "cubic-bezier(0.65, 0, 0.35, 1)";
+    const easing = `${ROLL_DURATION_MS}ms ${curve} ${delay}ms`;
 
     // No corresponding old digit at this place value (e.g. the new leading
-    // "1" when 99 -> 100) — rolls up from 0 instead. Width is set to its
-    // final size up front and never animated, so only the digit moves.
-    const startDigit = hasOldDigit ? Number(oldChar) : 0;
+    // "1" when 99 -> 100) — rolls up from 0 instead. Mid roll, this is the
+    // exact (possibly fractional) spot the digit is at.
+    const midPosition = continuing && oldIndex >= 0 ? midRoll.positions[oldIndex] : null;
+    const startPosition = midPosition !== null && midPosition !== undefined ? midPosition : hasOldDigit ? Number(oldChar) : 0;
+    const startWhole = Math.floor(startPosition);
+    const startFraction = startPosition - startWhole;
 
     // Every digit spins the same direction as the number overall, wrapping
     // 0-9 if needed (e.g. 9 -> 6 while increasing wraps forward). A digit
     // with no old value always rolls up from 0.
     const goingUp = hasOldDigit ? overallGoingUp : true;
-    let steps = goingUp ? finalDigit - startDigit : startDigit - finalDigit;
-    if (steps < 0) steps += 10;
+    // Going up, the strip runs from the digit at or below the start up to the
+    // final one. Going down, from the final one up to the digit at or above the
+    // start. A start partway past the final digit has to wrap all the way round.
+    const top = startWhole + (startFraction > 0 ? 1 : 0);
+    let steps = goingUp ? finalDigit - startWhole : top - finalDigit;
+    steps = ((steps % 10) + 10) % 10;
+    if (steps === 0 && startFraction > 0) steps = 10;
     const stripLength = steps + 1;
-
-    // Final width set up front, non-animated — a same-tick width change
-    // isn't visible as motion.
+    // How far into the strip the start sits, in entries.
+    const startIndex = goingUp ? startFraction : steps - (top - startPosition);
+    // Digits aren't all the same width, so the slot eases from the old digit's
+    // width to the new one's alongside the roll instead of jumping to it. A
+    // digit with no old counterpart grows in from nothing.
+    const midWidth = continuing && oldIndex >= 0 ? midRoll.widths[oldIndex] : undefined;
+    const startWidth = midWidth !== undefined ? midWidth : hasOldDigit ? oldWidths[oldIndex] : 0;
     const slot = document.createElement("span");
-    slot.style.cssText = `display:inline-block; overflow:hidden; height:${slotHeight}px; width:${newWidth}px; text-align:center; transition:none;`;
+    slot.style.cssText = `display:inline-block; overflow:hidden; height:${slotHeight}px; width:${startWidth}px; text-align:center; transition:none;`;
 
     const strip = document.createElement("span");
     strip.style.cssText = "display:block; transition:none;";
@@ -236,7 +322,7 @@ function animateNumberChange(element, newText, revealStyle) {
     // digits listed final -> start, starting scrolled to the bottom entry
     // and animating back to translateY(0), so the new digit drops in from
     // above.
-    const base = goingUp ? startDigit : finalDigit;
+    const base = goingUp ? startWhole : finalDigit;
     for (let d = 0; d < stripLength; d++) {
       const digitEl = document.createElement("span");
       digitEl.style.cssText = `display:block; height:${slotHeight}px; line-height:${slotHeight}px;`;
@@ -245,7 +331,7 @@ function animateNumberChange(element, newText, revealStyle) {
     }
 
     const maxOffset = (stripLength - 1) * slotHeight;
-    const startTransform = goingUp ? 0 : -maxOffset;
+    const startTransform = -startIndex * slotHeight;
     const endTransform = goingUp ? -maxOffset : 0;
     strip.style.transform = `translateY(${startTransform}px)`;
 
@@ -257,6 +343,8 @@ function animateNumberChange(element, newText, revealStyle) {
     void strip.offsetHeight;
     strip.style.transition = `transform ${easing}`;
     strip.style.transform = `translateY(${endTransform}px)`;
+    slot.style.transition = `width ${easing}`;
+    slot.style.width = `${newWidth}px`;
   });
 
   const timer = setTimeout(() => {
@@ -306,6 +394,10 @@ let appData = {
   // { id, date, courseName, type, createdAt }. Plain course names/dates,
   // not scores, so this also stays unencrypted.
   addedAssessments: [],
+  // The assessments and assignments checked off in the Calendar tab's
+  // Upcoming list, as { id, completedAt }. Plain ids and times, so
+  // unencrypted too.
+  completedTasks: [],
   domainSnapshot: [],
   gpaClasses: [],
   domainScores: {},
@@ -341,6 +433,15 @@ function loadAddedAssessments() {
 
 function saveAddedAssessments(entries) {
   appData.addedAssessments = entries;
+  pushDataToCloud();
+}
+
+function loadCompletedTasks() {
+  return appData.completedTasks || [];
+}
+
+function saveCompletedTasks(ids) {
+  appData.completedTasks = ids;
   pushDataToCloud();
 }
 
@@ -427,6 +528,7 @@ const SHARED_TOAST_VISIBLE_MS = 4000;
 
 // Generic bottom-center floating message — reused for anything needing a
 // brief, dismissable heads-up.
+// message is plain text, or a node when the toast needs a link in it.
 function showToast(message) {
   if (!sharedToastEl) {
     sharedToastEl = document.createElement("div");
@@ -435,12 +537,108 @@ function showToast(message) {
     void sharedToastEl.offsetWidth; // force reflow so the entrance below actually transitions
   }
 
-  sharedToastEl.textContent = message;
+  sharedToastEl.replaceChildren(message);
   sharedToastEl.classList.add("signin-toast--visible");
   clearTimeout(sharedToastHideTimer);
   sharedToastHideTimer = setTimeout(() => {
     sharedToastEl.classList.remove("signin-toast--visible");
   }, SHARED_TOAST_VISIBLE_MS);
+}
+
+function hideToast() {
+  if (!sharedToastEl) return;
+  clearTimeout(sharedToastHideTimer);
+  sharedToastEl.classList.remove("signin-toast--visible");
+}
+
+// Chrome's own title tooltip, but see-through and quicker to appear: a single
+// shared element on <body>, shown just below the cursor once it has rested on
+// the element for HOVER_TOOLTIP_DELAY_MS. Like the native one it doesn't
+// follow the cursor: it stays where it is while the mouse moves, and jumps to
+// the cursor's new spot once the mouse rests again.
+const HOVER_TOOLTIP_DELAY_MS = 400;
+// The closest it comes to any edge of the window.
+const HOVER_TOOLTIP_EDGE_GAP = 8;
+let hoverTooltipEl = null;
+let hoverTooltipTimer = null;
+
+function hideHoverTooltip() {
+  clearTimeout(hoverTooltipTimer);
+  if (hoverTooltipEl) hoverTooltipEl.classList.remove("hover-tooltip--visible");
+}
+
+// Whole-pixel width (and position, below): at a fractional edge the 1px rim
+// renders softer on that side than the others.
+function sizeHoverTooltip(tooltip) {
+  tooltip.style.width = "";
+  tooltip.style.width = `${Math.ceil(tooltip.getBoundingClientRect().width)}px`;
+}
+
+// Just below the cursor, kept on screen: slid left of it near the right edge,
+// and flipped above it near the bottom, as the native one does.
+function placeHoverTooltip(tooltip, x, y) {
+  const width = tooltip.offsetWidth;
+  const height = tooltip.offsetHeight;
+  const left = Math.min(Math.round(x), window.innerWidth - width - HOVER_TOOLTIP_EDGE_GAP);
+  const below = Math.round(y) + 18;
+  const top = below + height > window.innerHeight - HOVER_TOOLTIP_EDGE_GAP ? Math.round(y) - 8 - height : below;
+  tooltip.style.left = `${Math.max(HOVER_TOOLTIP_EDGE_GAP, left)}px`;
+  tooltip.style.top = `${Math.max(HOVER_TOOLTIP_EDGE_GAP, top)}px`;
+}
+
+// A tooltip that shows at once and follows the cursor anywhere on the page,
+// for a mode that takes over the page (like the Calendar's date picking).
+// Separate from the hover one, which that mode keeps suppressed. Returns a
+// function that removes it.
+function showCursorTooltip(text, x, y) {
+  const tooltip = document.createElement("div");
+  tooltip.className = "hover-tooltip";
+  tooltip.textContent = text;
+  document.body.appendChild(tooltip);
+  sizeHoverTooltip(tooltip);
+  placeHoverTooltip(tooltip, x, y);
+  const follow = (event) => placeHoverTooltip(tooltip, event.clientX, event.clientY);
+  document.addEventListener("mousemove", follow);
+  void tooltip.offsetWidth; // force reflow so the fade-in below actually plays
+  tooltip.classList.add("hover-tooltip--visible");
+  return () => {
+    document.removeEventListener("mousemove", follow);
+    tooltip.classList.remove("hover-tooltip--visible");
+    setTimeout(() => tooltip.remove(), 150);
+  };
+}
+
+function attachHoverTooltip(element, text) {
+  let cursor = null;
+  const showSoon = (event) => {
+    // Ignores the tiny jitter of a hand resting on a trackpad.
+    if (cursor && Math.hypot(event.clientX - cursor.x, event.clientY - cursor.y) < 2) return;
+    cursor = { x: event.clientX, y: event.clientY };
+    clearTimeout(hoverTooltipTimer);
+    hoverTooltipTimer = setTimeout(() => {
+      // Set while something (like the Calendar's date picking) takes over
+      // the page and tooltips would only get in the way.
+      if (document.documentElement.dataset.suppressTooltips) return;
+      if (!hoverTooltipEl) {
+        hoverTooltipEl = document.createElement("div");
+        hoverTooltipEl.className = "hover-tooltip";
+        document.body.appendChild(hoverTooltipEl);
+      }
+      hoverTooltipEl.textContent = text;
+      sizeHoverTooltip(hoverTooltipEl);
+      placeHoverTooltip(hoverTooltipEl, cursor.x, cursor.y);
+      hoverTooltipEl.classList.add("hover-tooltip--visible");
+    }, HOVER_TOOLTIP_DELAY_MS);
+  };
+  element.addEventListener("mouseenter", showSoon);
+  element.addEventListener("mousemove", showSoon);
+  // Like the native one, a click dismisses it; this also stops it hovering over
+  // whatever the click opens.
+  element.addEventListener("mousedown", hideHoverTooltip);
+  element.addEventListener("mouseleave", () => {
+    cursor = null;
+    hideHoverTooltip();
+  });
 }
 
 // A signed-out edit never reaches Firestore — this is the chokepoint
@@ -480,6 +678,7 @@ function resetAppData() {
     periodDivisions: [],
     hiddenCourses: [],
     addedAssessments: [],
+    completedTasks: [],
     domainSnapshot: [],
     gpaClasses: [],
     domainScores: {},

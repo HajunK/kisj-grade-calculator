@@ -30,7 +30,7 @@ function smInitSegmentedControl(container) {
     btn.addEventListener("click", () => {
       if (btn.classList.contains("segmented-option--active")) return;
       window.setPreference(container.dataset.pref, btn.dataset.value);
-      smSyncSegmentedControl(container, window.animationsEnabled());
+      smSyncSegmentedControl(container, true);
     });
   });
 
@@ -81,11 +81,10 @@ function smSyncToggle(input, animate) {
 // somewhere else (another tab/device) while it's open — a no-op the rest
 // of the time, since these selectors then match nothing.
 window.addEventListener("app:preferences-changed", () => {
-  const animate = window.animationsEnabled();
   document
     .querySelectorAll(".settings-modal-overlay .segmented-control")
-    .forEach((el) => smSyncSegmentedControl(el, animate));
-  document.querySelectorAll(".settings-modal-overlay .settings-toggle").forEach((el) => smSyncToggle(el, animate));
+    .forEach((el) => smSyncSegmentedControl(el, true));
+  document.querySelectorAll(".settings-modal-overlay .settings-toggle").forEach((el) => smSyncToggle(el, true));
 });
 
 // Reuses shared.js's own showToast where it's already loaded (My Courses/
@@ -145,19 +144,9 @@ function smShowConfirmDialog({ title, message, confirmLabel, requireEmail }) {
 
     document.body.appendChild(overlay);
     const dialog = overlay.querySelector(".confirm-dialog");
-    const animate = window.animationsEnabled();
-    if (!animate) {
-      dialog.classList.add("confirm-dialog--instant");
-      overlay.classList.add("confirm-dialog-overlay--instant");
-    }
     void dialog.offsetWidth; // force reflow so the entrance transition below actually plays
     dialog.classList.add("confirm-dialog--visible");
     overlay.classList.add("confirm-dialog-overlay--visible");
-    if (!animate) {
-      void dialog.offsetWidth; // commit the instant state before re-enabling the transition
-      dialog.classList.remove("confirm-dialog--instant");
-      overlay.classList.remove("confirm-dialog-overlay--instant");
-    }
 
     let settled = false;
     function close(result) {
@@ -165,10 +154,6 @@ function smShowConfirmDialog({ title, message, confirmLabel, requireEmail }) {
       settled = true;
       document.removeEventListener("keydown", handleKeydown);
       resolve(result);
-      if (!window.animationsEnabled()) {
-        overlay.remove();
-        return;
-      }
       dialog.classList.remove("confirm-dialog--visible");
       overlay.classList.remove("confirm-dialog-overlay--visible");
       setTimeout(() => overlay.remove(), 250);
@@ -314,19 +299,9 @@ function smRevealOverlay(overlay) {
     if (event.target === overlay) closeSettingsModal();
   });
 
-  const animate = window.animationsEnabled();
-  if (!animate) {
-    card.classList.add("settings-modal-card--instant");
-    overlay.classList.add("settings-modal-overlay--instant");
-  }
   void card.offsetWidth; // force reflow so the entrance transition below actually plays
   card.classList.add("settings-modal-card--visible");
   overlay.classList.add("settings-modal-overlay--visible");
-  if (!animate) {
-    void card.offsetWidth; // commit the instant state before re-enabling the transition
-    card.classList.remove("settings-modal-card--instant");
-    overlay.classList.remove("settings-modal-overlay--instant");
-  }
 }
 
 function closeSettingsModal() {
@@ -334,10 +309,6 @@ function closeSettingsModal() {
   const closingOverlay = settingsModalOverlay;
   const card = closingOverlay.querySelector(".settings-modal-card");
   settingsModalOverlay = null;
-  if (!window.animationsEnabled()) {
-    closingOverlay.remove();
-    return;
-  }
   // Reverses the entrance transition above.
   card.classList.remove("settings-modal-card--visible");
   closingOverlay.classList.remove("settings-modal-overlay--visible");
@@ -357,7 +328,7 @@ function openSettingsModal() {
 
   const overlay = smBuildOverlay(`
     <div class="settings-card settings-modal-card">
-      <button type="button" class="settings-modal-close-btn" aria-label="Close">×</button>
+      <button type="button" class="settings-modal-close-btn" aria-label="Close"><span class="close-icon" aria-hidden="true"></span></button>
       <h2 class="settings-title">Settings</h2>
 
       <div class="settings-row">
@@ -414,14 +385,6 @@ function openSettingsModal() {
         </label>
       </div>
 
-      <div class="settings-row">
-        <span class="settings-label">Animations</span>
-        <label class="toggle-switch">
-          <input type="checkbox" class="settings-toggle" data-pref="animationsEnabled" />
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-
       <div class="settings-divider"></div>
 
       <div class="settings-danger-row">
@@ -473,20 +436,20 @@ function openLoginKeysModal() {
 
   const overlay = smBuildOverlay(`
     <div class="settings-card login-keys-card settings-modal-card">
-      <button type="button" class="settings-modal-close-btn" aria-label="Close">×</button>
+      <button type="button" class="settings-modal-close-btn" aria-label="Close"><span class="close-icon" aria-hidden="true"></span></button>
       <h2 class="settings-title">Login Keys</h2>
-      <p class="settings-encryption-hint">
-        Save this key somewhere safe. It is necessary when logging in with another device.
-      </p>
+      <!-- An easier way to get the code onto another device than typing
+           it: scan this with that device's camera. -->
+      <div class="settings-encryption-qr" id="encryption-code-qr"></div>
       <div class="settings-encryption-code-row">
         <input type="text" class="settings-encryption-code" id="encryption-code" readonly />
         <button type="button" class="settings-copy-btn" id="copy-encryption-code-btn" aria-label="Copy">
           ${SM_COPY_ICON}
         </button>
       </div>
-      <!-- An easier way to get the code onto another device than typing
-           it: scan this with that device's camera. -->
-      <div class="settings-encryption-qr" id="encryption-code-qr"></div>
+      <p class="settings-encryption-hint">
+        Save this key somewhere safe. It is necessary when logging in with another device.
+      </p>
     </div>
   `);
 

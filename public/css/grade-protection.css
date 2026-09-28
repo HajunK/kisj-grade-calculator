@@ -1,0 +1,172 @@
+.grade-protection-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.grade-protection-overlay--visible {
+  opacity: 1;
+}
+
+.grade-protection-dialog {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  max-height: 75vh;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  background: var(--color-surface);
+  border-radius: calc(24px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 40px;
+  box-shadow: 0 8px 24px var(--color-shadow-popover);
+  opacity: 0;
+  transform: translateY(100vh);
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.grade-protection-dialog::-webkit-scrollbar {
+  display: none;
+}
+
+.grade-protection-dialog--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.grade-protection-close-btn {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  color: var(--color-gray-dark);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.grade-protection-close-btn:hover {
+  color: var(--color-text-primary);
+}
+
+.grade-protection-title {
+  margin: 0 0 16px;
+  font-size: 26px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.grade-protection-intro {
+  margin: 0 0 20px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--color-text-primary);
+}
+
+.grade-protection-intro a {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+.grade-protection-section-title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.grade-protection-section-text {
+  margin: 0 0 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-gray-dark);
+}
+
+.grade-protection-compare {
+  display: flex;
+  gap: 16px;
+  margin: 4px 0 20px;
+}
+
+.grade-protection-compare-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: var(--color-gray-lighter);
+  border-radius: 14px;
+}
+
+.grade-protection-compare-heading {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.grade-protection-grades {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.grade-protection-grade-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--color-text-primary);
+}
+
+.grade-protection-grade-row .letter-grade {
+  width: 26px;
+  height: 26px;
+}
+
+.grade-protection-cipher-box {
+  height: 52px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--color-surface);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--color-gray-dark);
+  word-break: break-all;
+}
+
+.grade-protection-cipher-box::-webkit-scrollbar {
+  display: none;
+}
+
+.grade-protection-key-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-gray-dark);
+}
+
+.grade-protection-key-icon {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  margin-top: -2px;
+}

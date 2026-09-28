@@ -33,7 +33,7 @@ try {
   // ignore — private browsing / storage disabled
 }
 
-// Hidden by default (see .tab--admin-only in style.css) so a first-ever
+// Hidden by default (see .tab--admin-only in nav.css) so a first-ever
 // visit — nothing cached yet — never shows it flash before auth resolves.
 function updateAdminTabVisibility(user) {
   const isAdmin = Boolean(user && ADMIN_EMAILS.includes(user.email));
@@ -94,7 +94,7 @@ function positionAuthMenu(avatarBtn, menu) {
 function buildAuthMenuItem(label, onClick) {
   const item = document.createElement("button");
   item.type = "button";
-  item.className = "auth-menu-item";
+  item.className = "popup-menu-item";
   item.textContent = label;
   item.addEventListener("click", () => {
     closeAuthMenu();
@@ -107,7 +107,7 @@ function openAuthMenu(avatarBtn) {
   closeAuthMenu();
 
   const menu = document.createElement("div");
-  menu.className = "auth-menu";
+  menu.className = "popup-menu";
 
   if (typeof openMyCoursesModal === "function") {
     menu.appendChild(buildAuthMenuItem("My Courses", openMyCoursesModal));
@@ -120,7 +120,7 @@ function openAuthMenu(avatarBtn) {
   }
   if (menu.children.length > 0) {
     const divider = document.createElement("div");
-    divider.className = "auth-menu-divider";
+    divider.className = "popup-menu-divider";
     menu.appendChild(divider);
   }
   menu.appendChild(buildAuthMenuItem("Sign out", () => auth.signOut()));
@@ -128,25 +128,19 @@ function openAuthMenu(avatarBtn) {
   document.body.appendChild(menu);
   positionAuthMenu(avatarBtn, menu);
   currentAuthMenu = { avatarBtn, menu };
+  avatarBtn.classList.add("auth-avatar-btn--open");
 
-  if (!window.animationsEnabled()) {
-    menu.classList.add("auth-menu--visible");
-    return;
-  }
   void menu.offsetWidth; // force reflow so the entrance transition below actually plays
-  menu.classList.add("auth-menu--visible");
+  menu.classList.add("popup-menu--visible");
 }
 
 function closeAuthMenu() {
   if (!currentAuthMenu) return;
-  const { menu } = currentAuthMenu;
+  const { avatarBtn, menu } = currentAuthMenu;
   currentAuthMenu = null;
-  if (!window.animationsEnabled()) {
-    menu.remove();
-    return;
-  }
+  avatarBtn.classList.remove("auth-avatar-btn--open");
   // Reverses the entrance transition above.
-  menu.classList.remove("auth-menu--visible");
+  menu.classList.remove("popup-menu--visible");
   setTimeout(() => menu.remove(), 150);
 }
 
@@ -187,8 +181,9 @@ function renderAuthUI(user) {
     avatarBtn.className = "auth-avatar-btn";
     avatarBtn.setAttribute("aria-label", "Account menu");
     avatarBtn.appendChild(avatar);
-    avatarBtn.addEventListener("click", (event) => {
-      event.stopPropagation();
+    // Not stopping the click here, so other open menus (like the Calendar's +
+    // menu) see it and close; the document handler below skips this button.
+    avatarBtn.addEventListener("click", () => {
       if (currentAuthMenu && currentAuthMenu.avatarBtn === avatarBtn) closeAuthMenu();
       else openAuthMenu(avatarBtn);
     });

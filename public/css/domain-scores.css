@@ -1,0 +1,599 @@
+/* A column, not the F/S row. Final Exam is a child too, so it draws from the
+   same flex: 1 share and shrinks the F/S row instead of growing the card. */
+.assessment-groups {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  /* Set here, not just on .assessment-box, so gaps between rows are covered. A
+     real button inside sets its own cursor. */
+  cursor: text;
+}
+
+.assessment-fs-row {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+/* A DOM child of .assessment-groups, not .assessment-fs-row, so the hover
+   selector has to target .assessment-groups. */
+.formative-link-btn {
+  position: absolute;
+  left: 50%;
+  z-index: 5;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-surface);
+  /* Floats over the boxes like the dropdowns, so it keeps the popover shadow in
+     dark mode. */
+  box-shadow: 0 2px 6px var(--color-shadow-popover);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  /* --edge-mask (set in JS, see positionFormativeLinkButton) fades it at the
+     list's top and bottom edges along with its row. no-clip plus an image
+     12px bigger on every side keeps the shadow, which a mask would otherwise
+     cut off at the button's edge. */
+  mask-image: var(--edge-mask, none);
+  mask-size: calc(100% + 24px) calc(100% + 24px);
+  mask-position: -12px -12px;
+  mask-repeat: no-repeat;
+  mask-clip: no-clip;
+}
+
+.assessment-groups:hover .formative-link-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.formative-link-btn:hover {
+  background: var(--color-gray-lighter);
+}
+
+.formative-link-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.assessment-box {
+  --score-pad-top: 10px;
+  --score-label-h: 24px;
+  /* The strip at the top that rows scroll up into, behind the label: from the
+     box's top edge down to where the first row sits at rest. */
+  --score-under-label-h: calc(var(--score-pad-top) + var(--score-label-h) + 6px);
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1.5px solid var(--color-gray-light);
+  border-radius: 14px;
+  /* No bottom padding: the list runs to the border, and rows that continue
+     below fade out there instead (see ::after). */
+  padding: var(--score-pad-top) 16px 0;
+  cursor: text;
+}
+
+.assessment-box--wide {
+  flex: 0 0 auto;
+  margin-top: 16px;
+  margin-bottom: 8px;
+  padding-bottom: 16px;
+}
+
+/* A fade into the card's surface over the last stretch of the list. An
+   overlay rather than a mask on the list: a mask would give the list its own
+   stacking layer and put the scrollbar over the numbers. */
+.assessment-box::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  height: 36px;
+  border-radius: 0 0 12.5px 12.5px;
+  background: linear-gradient(to bottom, transparent, var(--color-surface));
+  pointer-events: none;
+}
+
+/* Rows scroll up behind the label, like the Calendar tab's Upcoming list:
+   this fades the real rows out across that strip, and .score-blur lays a
+   blurred copy of them over it, so they blur and dim the higher they go.
+   Always on, since at rest the strip is empty down to its bottom edge, where
+   the first row starts. An overlay rather than a mask on the list: a mask
+   would give the list its own stacking layer and put the scrollbar over the
+   numbers. */
+.assessment-box::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 3;
+  height: var(--score-under-label-h);
+  border-radius: 12.5px 12.5px 0 0;
+  background: linear-gradient(
+    to bottom,
+    var(--color-surface) calc(var(--score-pad-top) + var(--score-label-h) - 8px),
+    transparent
+  );
+  pointer-events: none;
+}
+
+/* The blurred copy of the list, lined up with it in JS (see
+   attachScoreScrollBlur). Never fully opaque, and fainter the higher it goes:
+   rows fade as they blur, from 60% where they hand over from the real ones
+   at the label's bottom edge, through 55% at its middle, to 35% at the
+   box's top. The full width of the box, not just the list's, so the blur
+   spreading out past the rows isn't cut off in a hard line; clipped to the
+   box's rounded top corners. */
+.score-blur {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  height: var(--score-under-label-h);
+  border-radius: 12.5px 12.5px 0 0;
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.35),
+    rgba(0, 0, 0, 0.55) calc(var(--score-pad-top) + var(--score-label-h) / 2),
+    rgba(0, 0, 0, 0.6) calc(var(--score-pad-top) + var(--score-label-h)),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.35),
+    rgba(0, 0, 0, 0.55) calc(var(--score-pad-top) + var(--score-label-h) / 2),
+    rgba(0, 0, 0, 0.6) calc(var(--score-pad-top) + var(--score-label-h)),
+    transparent
+  );
+}
+
+/* The copy keeps .score-list, so its rows are styled like the real ones,
+   with the real list's scrolling and pulled-up margin taken back off. */
+.score-blur > .score-list {
+  margin: 0;
+  overflow: visible;
+  filter: blur(6px);
+}
+
+.assessment-box--wide .score-blur {
+  display: none;
+}
+
+.assessment-box--wide::before,
+.assessment-box--wide::after {
+  display: none;
+}
+
+/* Above the rows that scroll up behind it and their blur. */
+.assessment-label {
+  position: relative;
+  z-index: 4;
+  height: var(--score-label-h);
+  font-size: 20px;
+  line-height: var(--score-label-h);
+  font-weight: var(--fw-assessment-label);
+  color: var(--color-text-primary);
+  cursor: text;
+}
+
+.score-list {
+  list-style: none;
+  /* Pulled up to the box's top edge, under the label, and padded back down so
+     the first row still starts 6px below it: scrolled, rows pass up behind
+     the label (see .assessment-box::before). The bottom padding is room the
+     size of the bottom fade, so the last row can scroll clear of it. */
+  margin: calc(-1 * (var(--score-pad-top) + var(--score-label-h))) -8px 0 0;
+  padding: var(--score-under-label-h) 0 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  cursor: text;
+  /* The native scrollbar takes width from the rows whenever it appears,
+     shifting everything on the right; .score-scroll-thumb is drawn over the
+     list instead. */
+  scrollbar-width: none;
+}
+
+.score-list::-webkit-scrollbar {
+  display: none;
+}
+
+/* Positioned and sized in JS (see attachScoreScrollThumb). Only the hovered
+   box shows it; the other box's scrollTop is synced in JS, which doesn't
+   trigger :hover. z-index 1 puts it over the rows' pill backgrounds but under
+   their contents, which sit at 2 (below). */
+.score-scroll-thumb {
+  position: absolute;
+  z-index: 1;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--color-scrollbar-thumb);
+  opacity: 0;
+  cursor: default;
+  transition: opacity 0.15s ease;
+}
+
+.score-scroll-thumb[hidden] {
+  display: none;
+}
+
+.score-list:hover ~ .score-scroll-thumb,
+.score-scroll-thumb:hover,
+.score-scroll-thumb--dragging {
+  opacity: 1;
+}
+
+.assessment-box--wide .score-list {
+  padding-top: 0;
+  padding-bottom: 0;
+  margin-top: 4px;
+}
+
+.score-list li {
+  position: relative;
+  /* The row gap wasn't reliably inheriting from .assessment-groups several
+     levels up. */
+}
+
+.score-list li label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 17px;
+  transition: background-color 0.15s ease;
+}
+
+/* Stops matching once something inside is focused, so only that cell's own
+   :focus-within highlight shows. */
+.assessment-box:hover:not(:has(.score-value:focus)) .score-list li:has(.letter-grade--empty) label {
+  background: var(--color-gray-lighter);
+}
+
+/* Above .score-scroll-thumb, while the label's own pill background stays under
+   it. None of the list's ancestors up to the card form a stacking context, so
+   these and the thumb are layered against each other directly. */
+.score-list li label > * {
+  z-index: 2;
+}
+
+.score-list li label > .letter-grade,
+.score-list li label > .score-value {
+  position: relative;
+}
+
+.score-list li label:focus-within {
+  background: var(--color-focus-highlight);
+}
+
+.score-list li label:has(img[data-slug]) .score-value::selection,
+.grade-summary .grade-value::selection {
+  background: color-mix(in srgb, var(--grade-highlight, var(--grade-color)) 35%, transparent);
+  color: inherit;
+}
+
+.score-value {
+  font: inherit;
+  font-size: 24px;
+  color: var(--color-text-primary);
+  width: 6ch;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+}
+
+.score-value:focus {
+  outline: none;
+}
+
+/* A separate element, not a placeholder: a placeholder shares the input's text
+   box, so shifting it over the icon would move the caret too. */
+.score-type-hint {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  /* 70% of .score-value's 24px; a plain % would resolve against this span's own
+     ancestors. */
+  font-size: 16.8px;
+  color: transparent;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: color 0.15s ease;
+}
+
+.assessment-box:hover .score-type-hint {
+  color: var(--color-gray-light);
+}
+
+/* Higher specificity than the hover rule above, so it wins regardless of hover. */
+.score-list:has(.score-value:focus) .score-type-hint {
+  color: transparent;
+}
+
+/* Absolute, so it takes no horizontal space and never shifts the icon or input. */
+.score-original {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  transform-origin: left center;
+  font-size: 15px;
+  color: var(--color-gray-dark);
+  pointer-events: none;
+}
+
+.score-original:empty {
+  display: none;
+}
+
+/* A date takes priority over the replaced-score label. */
+.score-list li:has(.score-date-label:not(:empty)) .score-original {
+  display: none;
+}
+
+/* force-original is toggled in JS because the link button isn't inside the row,
+   so :hover can't reach it. Repeats the :has() clause to match the date rule's
+   specificity. */
+.score-list li.force-original:has(.score-original:not(:empty)) .score-original {
+  display: inline;
+}
+
+.score-list li.force-original:has(.score-original:not(:empty)) .score-date-label {
+  display: none;
+}
+
+/* Same, for the whole swap animation, so a dated row doesn't hide its moving
+   number the instant the cursor leaves the button. */
+.score-list li.swap-animating:has(.score-date-label:not(:empty)) .score-original {
+  display: inline;
+}
+
+.score-list li.swap-animating .score-date-label {
+  display: none;
+}
+
+/* Occupies .score-original's spot (never both at once) so trailing labels stay
+   aligned. */
+.score-date-label {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 15px;
+  color: var(--color-gray-dark);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.score-date-label:empty {
+  display: none;
+}
+
+.score-list li:hover .score-date-label,
+.score-list li:has(.score-date-btn--active) .score-date-label {
+  display: none;
+}
+
+.score-date-btn {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: none;
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.score-date-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.score-list li:hover:has(.letter-grade:not(.letter-grade--empty)) .score-date-btn,
+.score-date-btn--active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.score-list li:has(.score-original:not(:empty)):has(.score-date-label:empty) .score-date-btn {
+  right: 34px;
+}
+
+.score-date-calendar {
+  z-index: 50;
+  width: 240px;
+  background: var(--color-surface);
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: 0 8px 24px var(--color-shadow-popover);
+  /* transform-origin is set per-instance in JS, to the corner nearest the
+     button that opened it. */
+  opacity: 0;
+  transform: scale(0.85);
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.score-date-calendar--visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.score-date-calendar-clear-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.score-date-calendar-clear-label {
+  font-size: 13px;
+  color: var(--color-gray-dark);
+}
+
+.score-date-calendar-clear-btn {
+  flex-shrink: 0;
+  padding: 5px 12px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-gray-lighter);
+  color: var(--color-gray-dark);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.score-date-calendar-clear-btn:hover {
+  background: var(--color-gray-light);
+  color: var(--color-text-primary);
+}
+
+.score-date-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.score-date-calendar-label {
+  font-size: 15px;
+  font-weight: var(--fw-assessment-label);
+  color: var(--color-text-primary);
+}
+
+.score-date-nav-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text-primary);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.score-date-nav-btn:hover:not(:disabled) {
+  background: var(--color-gray-lighter);
+}
+
+.score-date-nav-btn:disabled {
+  color: var(--color-gray-light);
+  cursor: default;
+}
+
+.score-date-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+/* Clips the days as they slide between months (see slideScoreCalendarDays). */
+.score-date-days-window {
+  position: relative;
+  overflow: hidden;
+}
+
+/* The outgoing month, laid over the incoming one while it slides away. */
+.score-date-days--leaving {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+.score-date-weekday-row {
+  margin-bottom: 4px;
+}
+
+.score-date-weekday {
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-gray-dark);
+}
+
+.score-date-day {
+  width: 100%;
+  aspect-ratio: 1;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.score-date-day--outside {
+  visibility: hidden;
+  cursor: default;
+}
+
+.score-date-day:hover {
+  background: var(--color-gray-lighter);
+}
+
+.score-date-day--today {
+  background: var(--color-accent);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+/* :hover on .score-date-day outranks --today; dark text keeps today's white
+   text from washing out on the lighter hover circle. */
+.score-date-day--today:hover {
+  color: var(--color-text-primary);
+}
+
+.score-date-day--selected {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+/* Inverted like .assessment-calendar-day--selected, otherwise it falls back to
+   plain --selected and loses its blue. */
+.score-date-day--today.score-date-day--selected {
+  background: var(--color-surface);
+  color: var(--color-accent);
+}
+
+/* Light mode offsets this shadow 2px down; against the near-black page that
+   reads as lopsided, so dark spreads it evenly. */
+:root[data-theme="dark"] .formative-link-btn {
+  box-shadow: 0 0 6px var(--color-shadow-popover);
+}

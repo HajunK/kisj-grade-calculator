@@ -8,6 +8,10 @@ const EMPTY_SCORE_ROWS = 8;
 // an <img> with no src shows the browser's broken-image icon.
 const TRANSPARENT_ICON = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
 
+// A box's own score inputs, never the ones in its blurred copy (see
+// attachScoreScrollBlur), which would otherwise be read and saved twice over.
+const SCORE_INPUT = ".score-value:not(.score-blur *)";
+
 function letterGradeForScore(score) {
   return GRADE_SCALE.find((tier) => score >= tier.min);
 }
@@ -124,7 +128,7 @@ function updateScorePreview(input) {
 // Final Exam box.
 function getBoxScores(box) {
   const scores = [];
-  box.querySelectorAll(".score-value").forEach((input) => {
+  box.querySelectorAll(SCORE_INPUT).forEach((input) => {
     if (input.value === "") return;
     const value = parseFloat(input.value);
     if (!isNaN(value)) scores.push(value);
@@ -145,7 +149,7 @@ function findAssessmentBox(card, label) {
 
 function scoreRowIndex(input) {
   const list = input.closest(".score-list");
-  return Array.from(list.querySelectorAll(".score-value")).indexOf(input);
+  return Array.from(list.querySelectorAll(SCORE_INPUT)).indexOf(input);
 }
 
 // Formatives/Summatives start with EMPTY_SCORE_ROWS slots each; filling in
@@ -158,7 +162,7 @@ function growScoreListsIfLastRowFilled(card, input) {
   const label = box.querySelector(".assessment-label").textContent.trim();
   if (label !== "Formatives" && label !== "Summatives") return;
 
-  const rows = box.querySelectorAll(".score-value");
+  const rows = box.querySelectorAll(SCORE_INPUT);
   if (rows[rows.length - 1] !== input) return;
 
   const formativesBox = findAssessmentBox(card, "Formatives");
@@ -185,7 +189,7 @@ function shrinkScoreListsIfTrailingRowsEmpty(card, input) {
   if (!formativesBox || !summativesBox) return;
 
   const desiredLength = (assessmentBox) => {
-    const rows = Array.from(assessmentBox.querySelectorAll(".score-value"));
+    const rows = Array.from(assessmentBox.querySelectorAll(SCORE_INPUT));
     let lastFilledIndex = -1;
     rows.forEach((row, index) => {
       if (row.value !== "") lastFilledIndex = index;
@@ -197,7 +201,7 @@ function shrinkScoreListsIfTrailingRowsEmpty(card, input) {
 
   [formativesBox, summativesBox].forEach((assessmentBox) => {
     const list = assessmentBox.querySelector(".score-list");
-    while (list.querySelectorAll(".score-value").length > target) {
+    while (list.querySelectorAll(SCORE_INPUT).length > target) {
       list.lastElementChild.remove();
     }
   });
@@ -210,7 +214,7 @@ function updateEmptyBoxPlaceholder(box) {
   const label = box.querySelector(".assessment-label").textContent.trim();
   if (label !== "Formatives" && label !== "Summatives") return;
 
-  const inputs = box.querySelectorAll(".score-value");
+  const inputs = box.querySelectorAll(SCORE_INPUT);
   const firstInput = inputs[0];
   if (!firstInput) return;
 
@@ -311,8 +315,8 @@ function syncFormativeReplacementForRow(card, changedInput) {
   if (!formativesBox || !summativesBox) return;
 
   const rowIndex = scoreRowIndex(changedInput);
-  const formativeInput = formativesBox.querySelectorAll(".score-value")[rowIndex];
-  const summativeInput = summativesBox.querySelectorAll(".score-value")[rowIndex];
+  const formativeInput = formativesBox.querySelectorAll(SCORE_INPUT)[rowIndex];
+  const summativeInput = summativesBox.querySelectorAll(SCORE_INPUT)[rowIndex];
   if (!formativeInput || !summativeInput) return;
 
   // Clearing either side invalidates the tracked link state — reset so the
@@ -343,7 +347,7 @@ function syncFormativeReplacementForRow(card, changedInput) {
 // the old icon is laid over the (already updated) real one and fades out.
 function dissolveScoreIcon(icon, oldSrc) {
   const row = icon && icon.closest("li");
-  if (!row || !oldSrc || icon.src === oldSrc || !window.animationsEnabled()) return;
+  if (!row || !oldSrc || icon.src === oldSrc) return;
 
   const iconRect = icon.getBoundingClientRect();
   const rowRect = row.getBoundingClientRect();
@@ -365,7 +369,7 @@ function dissolveScoreIcon(icon, oldSrc) {
 // is laid over it for the duration while the input's own text is hidden.
 function rollScoreInput(input, oldText, newText) {
   const row = input.closest("li");
-  if (!row || !window.animationsEnabled()) return;
+  if (!row) return;
 
   if (input._rollOverlay) input._rollOverlay.remove();
   clearTimeout(input._rollOverlayTimer);
@@ -394,7 +398,7 @@ function rollScoreInput(input, oldText, newText) {
 }
 
 // Privacy Blur: unblurs one score row's numbers (see [data-reveal-score] in
-// style.css) for half a second, then lets it blur again.
+// domain.css) for half a second, then lets it blur again.
 const scoreRevealTimers = new WeakMap();
 const SCORE_ROW_REVEAL_MS = 500;
 
@@ -480,6 +484,13 @@ function updateFormativeLinkButton(card, formativeInput, summativeInput, qualifi
 
 // Vertically aligns a link/unlink button with its Formative row's current
 // on-screen position, and hides it while that row is scrolled out of view.
+// Match the fade heights in domain-scores.css (.assessment-box::before/::after).
+const LINK_BTN_TOP_FADE_PX = 14;
+const LINK_BTN_BOTTOM_FADE_PX = 36;
+// How far the mask reaches past the button on every side; matches
+// .formative-link-btn's mask-size/mask-position, and covers its shadow.
+const LINK_BTN_MASK_BLEED_PX = 12;
+
 function positionFormativeLinkButton(groups, formativeInput, btn) {
   const list = formativeInput.closest(".score-list");
   const row = formativeInput.closest("li");
@@ -487,11 +498,44 @@ function positionFormativeLinkButton(groups, formativeInput, btn) {
   const rowRect = row.getBoundingClientRect();
   const groupsRect = groups.getBoundingClientRect();
 
-  const visible = rowRect.bottom > listRect.top && rowRect.top < listRect.bottom;
+  const box = list.closest(".assessment-box");
+  const hasFades = !box.classList.contains("assessment-box--wide");
+  // Rows fade out across the strip under the label (see
+  // .assessment-box::before): clear where the first row sits at rest, gone
+  // LINK_BTN_TOP_FADE_PX above that.
+  const clearTop = listRect.top + parseFloat(getComputedStyle(list).paddingTop);
+  const fadeTop = hasFades ? clearTop - LINK_BTN_TOP_FADE_PX : listRect.top;
+  const visible = rowRect.bottom > fadeTop && rowRect.top < listRect.bottom;
   btn.style.display = visible ? "flex" : "none";
   if (!visible) return;
 
-  btn.style.top = `${rowRect.top + rowRect.height / 2 - groupsRect.top}px`;
+  const centerY = rowRect.top + rowRect.height / 2;
+  btn.style.top = `${centerY - groupsRect.top}px`;
+
+  // Fades out through the same bands as its row, top to bottom rather than as
+  // a whole: transparent up under the label, clear 14px below that, clear
+  // again until 36px above the bottom, then transparent at the bottom edge.
+  // The rows get this from surface-colored overlays, but the button sits over
+  // the box borders, which an overlay would cover too, so it gets a mask
+  // instead. The mask image is placed in the button's own pixels, bled out
+  // past its edges so the shadow isn't cut off.
+  const maskTop = centerY - btn.offsetHeight / 2 - LINK_BTN_MASK_BLEED_PX;
+  const stops = [];
+  if (hasFades) {
+    stops.push(`transparent ${fadeTop - maskTop}px`, `#000 ${clearTop - maskTop}px`);
+  } else {
+    stops.push("#000 0px");
+  }
+  if (hasFades) {
+    stops.push(`#000 ${listRect.bottom - LINK_BTN_BOTTOM_FADE_PX - maskTop}px`, `transparent ${listRect.bottom - maskTop}px`);
+  }
+  btn.style.setProperty("--edge-mask", `linear-gradient(to bottom, ${stops.join(", ")})`);
+
+  // Mostly faded out at its center is too faint to aim at, so it stops taking
+  // clicks.
+  const topFade = hasFades ? (centerY - fadeTop) / LINK_BTN_TOP_FADE_PX : 1;
+  const bottomFade = hasFades ? (listRect.bottom - centerY) / LINK_BTN_BOTTOM_FADE_PX : 1;
+  btn.style.pointerEvents = Math.min(topFade, bottomFade) < 0.5 ? "none" : "";
 }
 
 function repositionFormativeLinkButtons(card) {
@@ -516,15 +560,22 @@ function firstRevealStyle(card) {
 }
 
 function setBreakdownValue(card, index, value, revealStyle = firstRevealStyle(card)) {
-  const span = card.querySelectorAll(".breakdown-value")[index];
+  const span = card.querySelectorAll(".breakdown-values .breakdown-value")[index];
   if (!span) return;
   animateNumberChange(span, value === null ? "-" : truncateToTwoDecimals(value), revealStyle);
+}
+
+function setBreakdownSingle(card, label, value, revealStyle = firstRevealStyle(card)) {
+  const single = card.querySelector(".breakdown-single");
+  if (!single) return;
+  single.querySelector(".breakdown-single-label").textContent = label;
+  animateNumberChange(single.querySelector(".breakdown-value"), truncateToTwoDecimals(value), revealStyle);
 }
 
 function setBreakdownState(card, state) {
   const breakdown = card.querySelector(".grade-breakdown");
   if (!breakdown || breakdown.dataset.state === state) return false;
-  const instant = card.dataset.settled !== "true" || !window.animationsEnabled();
+  const instant = card.dataset.settled !== "true";
   if (instant) breakdown.classList.add("grade-breakdown--instant");
   breakdown.dataset.state = state;
   if (instant) {
@@ -559,14 +610,6 @@ function crossfadeBadgeIcon(wrap, badge, tier) {
 
   clearTimeout(badgeFadeTimeouts.get(fadeLayer));
 
-  if (!window.animationsEnabled()) {
-    badge.src = gradeIconPath(tier.slug);
-    badge.alt = tier.label;
-    badge.dataset.slug = tier.slug;
-    fadeLayer.style.opacity = "";
-    badgeFadeTimeouts.delete(fadeLayer);
-    return;
-  }
 
   // Set while still invisible (opacity: 0 is the fade layer's resting
   // state) so the new icon never flashes in before the transition below.
@@ -644,6 +687,7 @@ function recalculateCard(card) {
   let weightTotal = 0;
   let faAverage = null;
   let saAverage = null;
+  let scoredBoxes = 0;
 
   card.querySelectorAll(".assessment-box").forEach((box) => {
     const label = box.querySelector(".assessment-label").textContent.trim();
@@ -652,6 +696,7 @@ function recalculateCard(card) {
     if (label === "Formatives") faAverage = avg;
     if (label === "Summatives") saAverage = avg;
     if (avg === null) return;
+    scoredBoxes++;
 
     const weight = parseFloat(box.dataset.baseWeight);
     if (isNaN(weight)) return;
@@ -665,13 +710,18 @@ function recalculateCard(card) {
   // With nothing scored anywhere, the numbers stay as they were, hidden
   // behind "No grades yet" — rolling them to "-" would just flash while
   // that layer fades out.
+  // With only Formatives or only Summatives scored, D would just repeat that
+  // average, so the line shows that one average alone.
+  const onlyAverage = scoredBoxes === 1 ? (faAverage ?? saAverage) : null;
   if (domain === null) {
     setBreakdownState(card, "empty");
+  } else if (onlyAverage !== null) {
+    // A layer fades in from blur as a whole when it swaps in, so its number
+    // just appears rather than also blurring in.
+    const style = setBreakdownState(card, "single") ? "instant" : undefined;
+    setBreakdownSingle(card, faAverage !== null ? "Formative Average" : "Summative Average", onlyAverage, style);
   } else {
-    // The values layer itself fades in from blur when leaving "No grades
-    // yet", so the numbers just appear rather than also blurring in.
-    const leavingEmpty = setBreakdownState(card, "values");
-    const style = leavingEmpty ? "instant" : undefined;
+    const style = setBreakdownState(card, "values") ? "instant" : undefined;
     setBreakdownValue(card, 0, faAverage, style);
     setBreakdownValue(card, 1, saAverage, style);
     setBreakdownValue(card, 2, domain, style);
@@ -721,14 +771,14 @@ function serializeCardScores(card) {
   // hands back.
   const values = (box) =>
     box
-      ? Array.from(box.querySelectorAll(".score-value")).map((input) => {
+      ? Array.from(box.querySelectorAll(SCORE_INPUT)).map((input) => {
           const raw = input.dataset.rawValue ?? input.value;
           return raw === "" ? null : Number(raw);
         })
       : [];
 
-  const formativeInputs = formativesBox ? Array.from(formativesBox.querySelectorAll(".score-value")) : [];
-  const summativeInputs = summativesBox ? Array.from(summativesBox.querySelectorAll(".score-value")) : [];
+  const formativeInputs = formativesBox ? Array.from(formativesBox.querySelectorAll(SCORE_INPUT)) : [];
+  const summativeInputs = summativesBox ? Array.from(summativesBox.querySelectorAll(SCORE_INPUT)) : [];
 
   // Every score row gets the same date-picker UI, so both boxes need
   // their own saved array here.
@@ -776,18 +826,18 @@ function restoreCardScores(card, name) {
     const list1 = formativesBox.querySelector(".score-list");
     const list2 = summativesBox.querySelector(".score-list");
     const needed = Math.max(
-      list1.querySelectorAll(".score-value").length,
-      list2.querySelectorAll(".score-value").length,
+      list1.querySelectorAll(SCORE_INPUT).length,
+      list2.querySelectorAll(SCORE_INPUT).length,
       (saved.formative || []).length,
       (saved.summative || []).length
     );
-    while (list1.querySelectorAll(".score-value").length < needed) list1.appendChild(createScoreRow());
-    while (list2.querySelectorAll(".score-value").length < needed) list2.appendChild(createScoreRow());
+    while (list1.querySelectorAll(SCORE_INPUT).length < needed) list1.appendChild(createScoreRow());
+    while (list2.querySelectorAll(SCORE_INPUT).length < needed) list2.appendChild(createScoreRow());
   }
 
   const restoreBoxRows = (box, savedValues) => {
     if (!box || !savedValues) return;
-    const inputs = box.querySelectorAll(".score-value");
+    const inputs = box.querySelectorAll(SCORE_INPUT);
     savedValues.forEach((value, index) => {
       const input = inputs[index];
       // Not a plain falsy check — a genuine score of 0 is falsy too and
@@ -806,8 +856,8 @@ function restoreCardScores(card, name) {
   restoreBoxRows(finalBox, saved.final);
 
   if (formativesBox && summativesBox) {
-    const formativeInputs = formativesBox.querySelectorAll(".score-value");
-    const summativeInputs = summativesBox.querySelectorAll(".score-value");
+    const formativeInputs = formativesBox.querySelectorAll(SCORE_INPUT);
+    const summativeInputs = summativesBox.querySelectorAll(SCORE_INPUT);
 
     const restoreDates = (inputs, savedDates) => {
       (savedDates || []).forEach((isoDate, index) => {
@@ -921,11 +971,6 @@ const FORMATIVE_DATE_ICON_FADE_MS = 120;
 // number used to sit — a FLIP-style transform animation between two
 // otherwise unrelated elements.
 function animateFormativeReveal(input, originalSpan, oldText, onDone) {
-  if (!window.animationsEnabled()) {
-    onDone();
-    return;
-  }
-
   // The caller already committed input.value to its new (post-replacement)
   // number before this runs — captured here so it can be restored once the
   // fade-out below is done, after oldText below takes its place meanwhile.
@@ -1005,12 +1050,6 @@ function animateFormativeReveal(input, originalSpan, oldText, onDone) {
 // number shrinks and grays down into the small original-score spot, while
 // the new (replaced) big number fades in from the left.
 function animateFormativeUnreveal(input, originalSpan, rawText, effectiveText) {
-  if (!window.animationsEnabled()) {
-    originalSpan.textContent = rawText;
-    input.value = effectiveText;
-    return;
-  }
-
   const row = originalSpan.closest("li");
   if (row) row.classList.add("swap-animating");
 
@@ -1066,7 +1105,7 @@ document.addEventListener(
   (event) => {
     if (!event.target.classList.contains("letter-grade")) return;
     const label = event.target.closest(".score-list li label");
-    scoreFocusViaIcon = label ? label.querySelector(".score-value") : null;
+    scoreFocusViaIcon = label ? label.querySelector(SCORE_INPUT) : null;
   },
   true
 );
@@ -1119,7 +1158,7 @@ document.addEventListener(
 );
 
 // Privacy Blur: after committing a score with Enter, the card's big domain
-// score stays unblurred (see [data-reveal-domain] in style.css) until its
+// score stays unblurred (see [data-reveal-domain] in domain.css) until its
 // number roll finishes plus a further 0.2s, so the change can actually be
 // seen before it blurs again. The blur handler above has already
 // recalculated by the time this runs, so the roll is already under way.
@@ -1128,7 +1167,7 @@ const DOMAIN_REVEAL_LINGER_MS = 200;
 
 function revealDomainScoreBriefly(card) {
   const gradeValue = card.querySelector(".grade-value");
-  const rolling = window.animationsEnabled() && gradeValue;
+  const rolling = gradeValue;
   const digits = gradeValue ? (gradeValue.dataset.rollValue || gradeValue.textContent).length : 0;
   // Same total as animateNumberChange's own cleanup timer (see shared.js).
   const rollMs = rolling ? ROLL_DURATION_MS + ROLL_STAGGER_MS * digits + 50 : 0;
@@ -1149,7 +1188,7 @@ function revealDomainScoreBriefly(card) {
 // not the next score.
 function moveToNextScoreCell(input) {
   const list = input.closest(".score-list");
-  const inputs = Array.from(list.querySelectorAll(".score-value"));
+  const inputs = Array.from(list.querySelectorAll(SCORE_INPUT));
   const next = inputs[inputs.indexOf(input) + 1];
   if (!next) return false;
   next.focus();
@@ -1293,10 +1332,6 @@ function closeScoreDateCalendar() {
   button.classList.remove("score-date-btn--active");
   openScoreDateCalendar = null;
 
-  if (!window.animationsEnabled()) {
-    panel.remove();
-    return;
-  }
   // Reverses the entrance transition (see openScoreDateCalendarFor) —
   // shrinks back into the same corner it grew from, whether closed by
   // picking a date, hitting Remove, clicking outside, or switching to a
@@ -1306,7 +1341,15 @@ function closeScoreDateCalendar() {
   setTimeout(() => panel.remove(), 180);
 }
 
-function renderScoreDateCalendar(panel, displayedMonth, bounds, dateLabel) {
+// Same slide as the Add to calendar popup's step change (see showStep in
+// my-courses.js).
+const SCORE_CALENDAR_SLIDE_MS = 220;
+
+// direction: 1 or -1 when this is a move to the next or previous month, so
+// the days slide over; omitted on first opening.
+function renderScoreDateCalendar(panel, displayedMonth, bounds, dateLabel, direction) {
+  // Kept to slide out while the new month's days slide in.
+  const oldDays = direction ? panel.querySelector(".score-date-days:not(.score-date-days--leaving)") : null;
   panel.innerHTML = "";
 
   // Only offer to remove a date that's actually set.
@@ -1370,12 +1413,24 @@ function renderScoreDateCalendar(panel, displayedMonth, bounds, dateLabel) {
   prevBtn.addEventListener("click", (event) => {
     event.stopPropagation();
     if (atStart) return;
-    renderScoreDateCalendar(panel, new Date(displayedMonth.getFullYear(), displayedMonth.getMonth() - 1, 1), bounds, dateLabel);
+    renderScoreDateCalendar(
+      panel,
+      new Date(displayedMonth.getFullYear(), displayedMonth.getMonth() - 1, 1),
+      bounds,
+      dateLabel,
+      -1
+    );
   });
   nextBtn.addEventListener("click", (event) => {
     event.stopPropagation();
     if (atEnd) return;
-    renderScoreDateCalendar(panel, new Date(displayedMonth.getFullYear(), displayedMonth.getMonth() + 1, 1), bounds, dateLabel);
+    renderScoreDateCalendar(
+      panel,
+      new Date(displayedMonth.getFullYear(), displayedMonth.getMonth() + 1, 1),
+      bounds,
+      dateLabel,
+      1
+    );
   });
 
   header.append(prevBtn, label, nextBtn);
@@ -1392,7 +1447,7 @@ function renderScoreDateCalendar(panel, displayedMonth, bounds, dateLabel) {
   panel.appendChild(weekdayRow);
 
   const grid = document.createElement("div");
-  grid.className = "score-date-grid";
+  grid.className = "score-date-grid score-date-days";
 
   const year = displayedMonth.getFullYear();
   const month = displayedMonth.getMonth();
@@ -1430,7 +1485,47 @@ function renderScoreDateCalendar(panel, displayedMonth, bounds, dateLabel) {
     grid.appendChild(dayBtn);
   }
 
-  panel.appendChild(grid);
+  // Only the days move: they sit in a clipped window of their own, so the
+  // header and weekday letters above stay put.
+  const daysWindow = document.createElement("div");
+  daysWindow.className = "score-date-days-window";
+  daysWindow.appendChild(grid);
+  panel.appendChild(daysWindow);
+  if (oldDays) slideScoreCalendarDays(daysWindow, oldDays, grid, direction);
+}
+
+// The old month slides out one way as the new one slides in from the other,
+// while the window eases between their heights (a month can take 5 rows or
+// 6).
+function slideScoreCalendarDays(daysWindow, oldDays, newDays, direction) {
+  oldDays.classList.add("score-date-days--leaving");
+  daysWindow.appendChild(oldDays);
+  const from = oldDays.offsetHeight;
+  const to = newDays.offsetHeight;
+  if (from !== to) {
+    daysWindow.animate([{ height: `${from}px` }, { height: `${to}px` }], {
+      duration: SCORE_CALENDAR_SLIDE_MS,
+      easing: "ease",
+    });
+  }
+  const shift = 24 * direction;
+  oldDays
+    .animate(
+      [
+        { opacity: 1, transform: "translateX(0)" },
+        { opacity: 0, transform: `translateX(${-shift}px)` },
+      ],
+      { duration: SCORE_CALENDAR_SLIDE_MS * 0.7, easing: "ease", fill: "forwards" }
+    )
+    .finished.catch(() => {})
+    .finally(() => oldDays.remove());
+  newDays.animate(
+    [
+      { opacity: 0, transform: `translateX(${shift}px)` },
+      { opacity: 1, transform: "translateX(0)" },
+    ],
+    { duration: SCORE_CALENDAR_SLIDE_MS, easing: "ease" }
+  );
 }
 
 function openScoreDateCalendarFor(button, dateLabel) {
@@ -1461,14 +1556,8 @@ function openScoreDateCalendarFor(button, dateLabel) {
   const originXPercent = Math.max(0, Math.min(100, (buttonCenterX / panelWidth) * 100));
   panel.style.transformOrigin = `${originXPercent}% 0%`;
 
-  const animate = window.animationsEnabled();
-  if (!animate) panel.classList.add("score-date-calendar--instant");
   void panel.offsetWidth; // force reflow so the entrance transition below actually plays
   panel.classList.add("score-date-calendar--visible");
-  if (!animate) {
-    void panel.offsetWidth; // commit the instant state before re-enabling the transition
-    panel.classList.remove("score-date-calendar--instant");
-  }
 
   button.classList.add("score-date-btn--active");
   openScoreDateCalendar = { button, dateLabel, panel };
@@ -1506,22 +1595,239 @@ function createAssessmentBox(labelText, percentText, rowCount = EMPTY_SCORE_ROWS
 
   box.appendChild(label);
   box.appendChild(list);
+  attachScoreScrollBlur(box, list);
+  attachScoreScrollThumb(box, list);
   updateEmptyBoxPlaceholder(box);
   return box;
 }
 
+// A blurred copy of the list, shown where rows scroll up behind the label
+// (see .score-blur): re-copied whenever the list changes, typing included,
+// and lined up with it on every scroll, which attachScoreScrollThumb's
+// update passes on through list._placeScrollBlur, in the same frame as a
+// linked scroll.
+function attachScoreScrollBlur(box, list) {
+  const blur = document.createElement("div");
+  blur.className = "score-blur";
+  blur.setAttribute("aria-hidden", "true");
+  // Its copied inputs can't be tabbed to or clicked.
+  blur.inert = true;
+  box.appendChild(blur);
+  let copy = null;
+
+  // The blur spans the whole box (see .score-blur); the copy sits inside it
+  // exactly where the list is.
+  const place = () => {
+    if (!copy) return;
+    copy.style.marginLeft = `${list.offsetLeft}px`;
+    copy.style.width = `${list.offsetWidth}px`;
+    copy.style.transform = `translateY(${-list.scrollTop}px)`;
+  };
+
+  const recopy = () => {
+    copy = list.cloneNode(true);
+    // A clone takes each input's markup, not what's been typed into it since.
+    const typed = list.querySelectorAll("input");
+    copy.querySelectorAll("input").forEach((input, i) => {
+      input.value = typed[i].value;
+    });
+    blur.replaceChildren(copy);
+    place();
+  };
+
+  let frame = 0;
+  const recopySoon = () => {
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(recopy);
+  };
+  new MutationObserver(recopySoon).observe(list, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+    attributes: true,
+  });
+  list.addEventListener("input", recopySoon);
+  list._placeScrollBlur = place;
+  recopySoon();
+}
+
+// A scrollbar drawn behind the list's right edge instead of beside its rows,
+// so its appearing never narrows them. Kept in sync with the list's scroll
+// position, size and row count, and draggable like a real one.
+function attachScoreScrollThumb(box, list) {
+  const thumb = document.createElement("div");
+  thumb.className = "score-scroll-thumb";
+  thumb.hidden = true;
+  box.appendChild(thumb);
+
+  const INSET = 2;
+  // The list now runs down into the box's rounded bottom corner; the thumb
+  // stops short of it.
+  const TRACK_END_GAP = 10;
+  const label = box.querySelector(".assessment-label");
+  let thumbHeight = 0;
+  // The list also runs up under the label (see .score-list); the track starts
+  // below it.
+  const trackStart = () => Math.max(list.offsetTop, label.offsetTop + label.offsetHeight);
+  const trackLength = () => list.offsetTop + list.clientHeight - trackStart() - TRACK_END_GAP;
+  const update = () => {
+    const overflow = list.scrollHeight - list.clientHeight;
+    thumb.hidden = overflow <= 1;
+    list._placeScrollBlur?.();
+    if (thumb.hidden) return;
+    thumbHeight = Math.max(24, (trackLength() * list.clientHeight) / list.scrollHeight);
+    const travel = trackLength() - thumbHeight;
+    thumb.style.height = `${thumbHeight}px`;
+    thumb.style.top = `${trackStart() + (list.scrollTop / overflow) * travel}px`;
+    thumb.style.right = `${box.clientWidth - (list.offsetLeft + list.offsetWidth) + INSET}px`;
+  };
+
+  list.addEventListener("scroll", update, { passive: true });
+  // Called straight after a linked scroll (see linkScoreListScroll) so the
+  // thumb moves in the same frame as the rows, not a frame later on the
+  // scroll event.
+  list._updateScrollThumb = update;
+  new ResizeObserver(update).observe(list);
+  new MutationObserver(update).observe(list, { childList: true });
+
+  // A row's contents sit on top of the thumb, so a press there lands on the
+  // list instead; one inside the thumb's area still starts a drag rather than
+  // focusing the row.
+  const startDrag = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    thumb.setPointerCapture(event.pointerId);
+    thumb.classList.add("score-scroll-thumb--dragging");
+    const startY = event.clientY;
+    const startScroll = list.scrollTop;
+    const onMove = (moveEvent) => {
+      const travel = trackLength() - thumbHeight;
+      if (travel <= 0) return;
+      const value = startScroll + ((moveEvent.clientY - startY) * (list.scrollHeight - list.clientHeight)) / travel;
+      if (list._setLinkedScroll) list._setLinkedScroll(value);
+      else list.scrollTop = value;
+    };
+    const onUp = () => {
+      thumb.classList.remove("score-scroll-thumb--dragging");
+      thumb.removeEventListener("pointermove", onMove);
+      thumb.removeEventListener("pointerup", onUp);
+      thumb.removeEventListener("pointercancel", onUp);
+    };
+    thumb.addEventListener("pointermove", onMove);
+    thumb.addEventListener("pointerup", onUp);
+    thumb.addEventListener("pointercancel", onUp);
+  };
+  thumb.addEventListener("pointerdown", startDrag);
+  list.addEventListener("pointerdown", (event) => {
+    if (thumb.hidden) return;
+    const rect = thumb.getBoundingClientRect();
+    const onThumb =
+      event.clientX >= rect.left - 2 && event.clientX <= rect.right + 2 && event.clientY >= rect.top && event.clientY <= rect.bottom;
+    if (!onThumb) return;
+    suppressNextClick = true;
+    startDrag(event);
+  });
+  // Clicks on the box focus a score row; one that was a thumb drag shouldn't.
+  thumb.addEventListener("click", (event) => event.stopPropagation());
+  let suppressNextClick = false;
+  list.addEventListener(
+    "click",
+    (event) => {
+      if (!suppressNextClick) return;
+      suppressNextClick = false;
+      event.stopPropagation();
+      event.preventDefault();
+    },
+    true
+  );
+}
+
+const WHEEL_LINE_PX = 16;
+// A delta at least this big in one wheel event is a mouse-wheel notch rather
+// than a trackpad's stream of small ones, and gets eased instead of jumped.
+const WHEEL_NOTCH_PX = 50;
+
 // Keeps two score-list scroll positions in lockstep by raw pixel offset
 // (not proportional to each list's own max scroll).
+//
+// Wheel and trackpad scrolling is handled here rather than left to the
+// browser: native scrolling moves the list under the cursor off the main
+// thread, and the other list only catches up once the scroll event arrives,
+// a frame or more later. Setting both from one handler keeps them together.
+// Anything else that scrolls one list (keyboard, focusing a row) is still
+// mirrored from its scroll event.
 function linkScoreListScroll(listA, listB) {
-  let syncing = false;
-  const sync = (source, target) => {
-    if (syncing) return;
-    syncing = true;
-    target.scrollTop = source.scrollTop;
-    syncing = false;
+  let position = 0;
+  let target = null;
+  let frame = 0;
+
+  const maxScroll = () =>
+    Math.max(listA.scrollHeight - listA.clientHeight, listB.scrollHeight - listB.clientHeight, 0);
+
+  const setBoth = (value) => {
+    position = value;
+    listA.scrollTop = value;
+    listB.scrollTop = value;
+    listA._updateScrollThumb?.();
+    listB._updateScrollThumb?.();
+    listA._afterLinkedScroll?.();
+    listB._afterLinkedScroll?.();
   };
-  listA.addEventListener("scroll", () => sync(listA, listB));
-  listB.addEventListener("scroll", () => sync(listB, listA));
+
+  const stopEasing = () => {
+    cancelAnimationFrame(frame);
+    frame = 0;
+    target = null;
+  };
+
+  const easeStep = () => {
+    const next = position + (target - position) * 0.3;
+    if (Math.abs(target - next) < 0.5) {
+      setBoth(target);
+      stopEasing();
+      return;
+    }
+    setBoth(next);
+    frame = requestAnimationFrame(easeStep);
+  };
+
+  const onWheel = (event) => {
+    // Pinch-zoom and sideways swipes (scrolling the class cards) aren't ours.
+    if (event.ctrlKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+    const list = event.currentTarget;
+    const unit = event.deltaMode === 1 ? WHEEL_LINE_PX : event.deltaMode === 2 ? list.clientHeight : 1;
+    const delta = event.deltaY * unit;
+    const from = target !== null ? target : list.scrollTop;
+    const to = Math.min(Math.max(from + delta, 0), maxScroll());
+    // Already at the end in this direction: let the page scroll instead.
+    if (to === from && target === null) return;
+    event.preventDefault();
+
+    if (Math.abs(delta) >= WHEEL_NOTCH_PX) {
+      if (target === null) position = list.scrollTop;
+      target = to;
+      if (!frame) frame = requestAnimationFrame(easeStep);
+    } else {
+      stopEasing();
+      setBoth(to);
+    }
+  };
+
+  const mirror = (source, other) => {
+    if (target !== null || other.scrollTop === source.scrollTop) return;
+    position = source.scrollTop;
+    other.scrollTop = source.scrollTop;
+  };
+
+  [listA, listB].forEach((list) => {
+    list.addEventListener("wheel", onWheel, { passive: false });
+    list._setLinkedScroll = (value) => {
+      stopEasing();
+      setBoth(Math.min(Math.max(value, 0), maxScroll()));
+    };
+  });
+  listA.addEventListener("scroll", () => mirror(listA, listB));
+  listB.addEventListener("scroll", () => mirror(listB, listA));
 }
 
 // hasFinal decides the grading split: 20% formative / 60% summative / 20%
@@ -1578,8 +1884,8 @@ function addClassCard(name, hasFinal, matchName = name, hideable = true, periodI
 
   const breakdown = document.createElement("p");
   breakdown.className = "grade-breakdown";
-  // Two layers stacked in the same grid cell — "No grades yet" until a
-  // score exists, then the FA/SA/D line; see setBreakdownState.
+  // Layers stacked in the same grid cell — "No grades yet", a single
+  // Formative/Summative Average, or the FA/SA/D line; see setBreakdownState.
   breakdown.dataset.state = "empty";
   const breakdownEmpty = Object.assign(document.createElement("span"), {
     className: "breakdown-empty",
@@ -1587,19 +1893,38 @@ function addClassCard(name, hasFinal, matchName = name, hideable = true, periodI
   });
   const breakdownValues = document.createElement("span");
   breakdownValues.className = "breakdown-values";
+  // Each abbreviation and its number, hoverable together to spell out what
+  // the abbreviation stands for.
+  const breakdownSegment = (label, meaning) => {
+    const segment = document.createElement("span");
+    segment.className = "breakdown-segment";
+    segment.append(
+      `${label} `,
+      Object.assign(document.createElement("span"), { className: "breakdown-value", textContent: "-" })
+    );
+    attachHoverTooltip(segment, meaning);
+    return segment;
+  };
+  const breakdownDivider = () => Object.assign(document.createElement("span"), { className: "divider", textContent: "|" });
   breakdownValues.append(
-    "FA ",
-    Object.assign(document.createElement("span"), { className: "breakdown-value", textContent: "-" }),
+    breakdownSegment("FA", "Formative Average"),
     " ",
-    Object.assign(document.createElement("span"), { className: "divider", textContent: "|" }),
-    " SA ",
-    Object.assign(document.createElement("span"), { className: "breakdown-value", textContent: "-" }),
+    breakdownDivider(),
     " ",
-    Object.assign(document.createElement("span"), { className: "divider", textContent: "|" }),
-    " D ",
+    breakdownSegment("SA", "Summative Average"),
+    " ",
+    breakdownDivider(),
+    " ",
+    breakdownSegment("D", "Domain (unrounded)")
+  );
+  const breakdownSingle = document.createElement("span");
+  breakdownSingle.className = "breakdown-single";
+  breakdownSingle.append(
+    Object.assign(document.createElement("span"), { className: "breakdown-single-label" }),
+    " ",
     Object.assign(document.createElement("span"), { className: "breakdown-value", textContent: "-" })
   );
-  breakdown.append(breakdownEmpty, breakdownValues);
+  breakdown.append(breakdownEmpty, breakdownValues, breakdownSingle);
 
   const nextAssessmentLine = document.createElement("p");
   nextAssessmentLine.className = "next-assessment-line";
@@ -1633,6 +1958,9 @@ function addClassCard(name, hasFinal, matchName = name, hideable = true, periodI
   // the (synced) lists scroll.
   formativeList.addEventListener("scroll", () => repositionFormativeLinkButtons(card));
   summativeList.addEventListener("scroll", () => repositionFormativeLinkButtons(card));
+  // A linked wheel scroll moves the rows itself; this keeps the buttons in the
+  // same frame rather than a frame behind on the scroll event.
+  formativeList._afterLinkedScroll = () => repositionFormativeLinkButtons(card);
 
   // Connects the card to the page — needed before measuring anything
   // below, and before Final Exam (if any) is added.
@@ -1670,15 +1998,10 @@ function addClassCard(name, hasFinal, matchName = name, hideable = true, periodI
 
 const CARD_HIDE_MS = 250;
 
-// Fades a card out and removes it, animated only if Settings > Animations
-// is on — shared by the manual "hide" button (hideClassCard) and by
+// Fades a card out and removes it — shared by the manual "hide" button (hideClassCard) and by
 // renderDomainClasses below, whenever a course disappears from My Courses
 // (cleared, renamed, or newly hidden) while Domain is already open.
 function fadeOutAndRemoveCard(card) {
-  if (!window.animationsEnabled()) {
-    card.remove();
-    return;
-  }
   card.style.transition = `opacity ${CARD_HIDE_MS}ms ease`;
   card.style.opacity = "0";
   setTimeout(() => card.remove(), CARD_HIDE_MS);
@@ -1689,7 +2012,6 @@ function fadeOutAndRemoveCard(card) {
 // render (see renderDomainClasses' animate param) — cards already there
 // when the page loads should just be there, not fade in.
 function fadeInCard(card) {
-  if (!window.animationsEnabled()) return;
   card.style.opacity = "0";
   void card.offsetWidth; // force reflow so the "0" above actually takes effect first
   card.style.transition = `opacity ${CARD_HIDE_MS}ms ease`;
@@ -1710,7 +2032,17 @@ function hideClassCard(card, name) {
   const hidden = loadHiddenCourses();
   if (!hidden.includes(name)) saveHiddenCourses([...hidden, name]);
 
-  showToast(`${name} hidden. Show it again in My Courses.`);
+  const link = document.createElement("button");
+  link.type = "button";
+  link.className = "toast-link";
+  link.textContent = "My Courses";
+  link.addEventListener("click", () => {
+    hideToast();
+    openMyCoursesModal();
+  });
+  const message = document.createDocumentFragment();
+  message.append(`${name} hidden. Show it again in `, link, ".");
+  showToast(message);
   fadeOutAndRemoveCard(card);
 }
 
@@ -1747,7 +2079,7 @@ function updateNextAssessmentLine(card, name, periodIndex) {
     const baseHeight = parseFloat(groups.dataset.baseHeight);
 
     // Settings > Show upcoming assessments off hides this line via CSS
-    // (see html[data-hide-upcoming-assessments] in style.css) — treated
+    // (see html[data-hide-upcoming-assessments] in domain.css) — treated
     // the same as there being nothing upcoming here too, so the card
     // doesn't keep reserving height for a line that's not actually shown.
     const hiddenByPreference = document.documentElement.dataset.hideUpcomingAssessments === "true";
@@ -1782,7 +2114,7 @@ function updateNextAssessmentLine(card, name, periodIndex) {
     );
 
     // Filling in the line above also tightens .grade-breakdown's own
-    // margin-bottom (see the :has() rule in style.css) — read directly
+    // margin-bottom (see the :has() rule in domain.css) — read directly
     // rather than inferred from a page-position diff, which would also
     // pick up any unrelated shift (webfont swap, restoreCardScores) between
     // the two measurements and wrongly count it as space this line added.
@@ -1946,7 +2278,7 @@ function recalculateGroupsForBreakdown(card) {
 // A Settings change (breakdown/upcoming-assessments visibility, date
 // format) should be visible the instant it's made, not just on the next
 // reload. Breakdown's own line is a plain CSS toggle (see
-// html[data-hide-breakdown] in style.css); what needs an explicit push are
+// html[data-hide-breakdown] in domain.css); what needs an explicit push are
 // the things computed in JS and then locked in place: .assessment-groups'
 // own height budget (recalculateGroupsForBreakdown, then
 // updateNextAssessmentLine — now preference-aware — via renderDomainClasses)
@@ -1968,7 +2300,7 @@ function initDomainPage() {
   if (!dynamicClassesContainer) return;
 
   // The horizontal scrollbar only shows while actually scrolling, then
-  // fades back out (see .classes-container--scrolling in style.css) —
+  // fades back out (see .classes-container--scrolling in domain.css) —
   // idle-timeout reset on every scroll event rather than a fixed-length
   // one-shot, so it keeps showing through a long continuous scroll.
   let classesScrollingTimeout = null;
@@ -2027,7 +2359,7 @@ function initGradeProtectionModal() {
     el.className = "grade-protection-overlay";
     el.innerHTML = `
       <div class="grade-protection-dialog">
-        <button type="button" class="grade-protection-close-btn" aria-label="Close">×</button>
+        <button type="button" class="grade-protection-close-btn" aria-label="Close"><span class="close-icon" aria-hidden="true"></span></button>
         <h2 class="grade-protection-title">How Your Grades Are Protected</h2>
         <p class="grade-protection-intro">
           KISJ Grade Calculator uses
@@ -2107,19 +2439,9 @@ function initGradeProtectionModal() {
   function openModal() {
     overlay = buildOverlay();
     const dialog = overlay.querySelector(".grade-protection-dialog");
-    const animate = window.animationsEnabled();
-    if (!animate) {
-      dialog.classList.add("grade-protection-dialog--instant");
-      overlay.classList.add("grade-protection-overlay--instant");
-    }
     void dialog.offsetWidth; // force reflow so the entrance transition below actually plays
     dialog.classList.add("grade-protection-dialog--visible");
     overlay.classList.add("grade-protection-overlay--visible");
-    if (!animate) {
-      void dialog.offsetWidth; // commit the instant state before re-enabling the transition
-      dialog.classList.remove("grade-protection-dialog--instant");
-      overlay.classList.remove("grade-protection-overlay--instant");
-    }
   }
 
   function closeModal() {
@@ -2127,10 +2449,6 @@ function initGradeProtectionModal() {
     const closingOverlay = overlay;
     const dialog = closingOverlay.querySelector(".grade-protection-dialog");
     overlay = null;
-    if (!window.animationsEnabled()) {
-      closingOverlay.remove();
-      return;
-    }
     // Reverses the entrance transition above (see openModal).
     dialog.classList.remove("grade-protection-dialog--visible");
     closingOverlay.classList.remove("grade-protection-overlay--visible");

@@ -1,0 +1,92 @@
+/* Rules that set display carry a .x[hidden] { display: none } companion, since
+   an author display value beats the browser's [hidden] rule. */
+
+html {
+  overscroll-behavior: none;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html::-webkit-scrollbar {
+  display: none;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--color-background);
+  font-family: "Inter", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  overscroll-behavior: none;
+}
+
+.page-content {
+  padding: 64px 48px;
+  padding-top: 32px;
+}
+
+/* box-shadow overflow doesn't extend scrollable height, so a tall card's shadow
+   would otherwise be clipped below the max scroll position. */
+.page-content--flush-bottom {
+  padding-bottom: 32px;
+}
+
+/* Exactly the space below the tab bar, so the calendar can take what's left. */
+.page-content--fill {
+  box-sizing: border-box;
+  height: calc(100vh - 71px);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fixed, so it never adds scrollable height. */
+.page-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 12px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-gray-dark);
+  text-align: center;
+  pointer-events: none;
+}
+
+/* The footer is pointer-events: none so its full-width strip never blocks
+   clicks; this re-enables it for the link. */
+.page-footer-link {
+  pointer-events: auto;
+  border: none;
+  background: none;
+  padding: 0;
+  margin-left: 2px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--color-gray-dark);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.placeholder-card {
+  max-width: 480px;
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 32px;
+  box-shadow: var(--shadow-card);
+}
+
+.placeholder-card h2 {
+  margin: 0 0 8px;
+  font-size: 28px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.placeholder-card p {
+  margin: 0;
+  font-size: 16px;
+  color: var(--color-gray-dark);
+}

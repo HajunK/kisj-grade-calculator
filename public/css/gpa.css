@@ -1,0 +1,306 @@
+.gpa-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.gpa-card {
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 32px;
+  box-shadow: var(--shadow-card);
+}
+
+.gpa-classes-card {
+  width: 320px;
+  /* A floor so flex-shrink in .gpa-layout can't compress it further
+     (content-box, so excludes padding). */
+  min-width: 300px;
+}
+
+.gpa-classes-title {
+  margin: 0 0 4px;
+  font-size: 28px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.gpa-classes-description {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: var(--color-gray-dark);
+  overflow: hidden;
+}
+
+.gpa-class-list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gpa-class-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+}
+
+.gpa-class-name {
+  font-size: 19px;
+  color: var(--color-text-primary);
+}
+
+/* Scroll-driven grade changes briefly hold two absolute badges; without an
+   explicit size the button collapses to 0x0. */
+.gpa-grade-badge-btn {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 50%;
+  line-height: 0;
+}
+
+.gpa-clear-btn {
+  display: none;
+  position: absolute;
+  right: 50px;
+  top: 50%;
+  transform: translateY(-50%);
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: none;
+  color: var(--color-gray-dark);
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.gpa-class-row[data-slug]:not([data-slug=""]):hover .gpa-clear-btn {
+  display: flex;
+}
+
+.gpa-class-row--flipping .gpa-clear-btn {
+  display: none !important;
+}
+
+.grade-badge--empty {
+  display: inline-block;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid var(--color-gray-light);
+  background: transparent;
+  box-sizing: border-box;
+}
+
+/* Scoped to the GPA list so other .letter-grade badges (e.g. Domain's summary
+   icon) are unaffected. */
+.gpa-class-row .letter-grade,
+.gpa-class-row .grade-badge--empty {
+  width: 42px;
+  height: 42px;
+}
+
+.gpa-paste-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 10px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--color-gray-dark);
+  background: transparent;
+  border: 1px solid var(--color-gray-light);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.gpa-paste-btn:hover:not(:disabled) {
+  background: var(--color-background);
+}
+
+.gpa-paste-btn:disabled {
+  cursor: default;
+}
+
+.paste-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 8px;
+  border: 2px solid var(--color-gray-light);
+  border-top-color: var(--color-gray-dark);
+  border-radius: 50%;
+  animation: paste-spinner-spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes paste-spinner-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.gpa-summary-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.gpa-summary-title {
+  margin: 0 0 20px;
+  font-size: 28px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.gpa-summary-values {
+  display: flex;
+  gap: 48px;
+}
+
+.gpa-summary-values:has(.gpa-summary-item--combined:not([hidden])) {
+  justify-content: center;
+}
+
+.gpa-summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.gpa-summary-item[hidden] {
+  display: none;
+}
+
+.gpa-summary-item strong {
+  font-size: 40px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  /* Keeps digits centered during the roll animation, when this becomes
+     inline-flex. */
+  justify-content: center;
+}
+
+/* Direct-child on purpose: a descendant selector would also hit every
+   digit-slot span the roll animation builds inside <strong>, forcing each into
+   a 160px box. */
+.gpa-summary-item > span {
+  min-width: 160px;
+  font-size: 17px;
+  color: var(--color-gray-dark);
+  white-space: nowrap;
+  text-align: center;
+}
+
+.gpa-grade-dropdown {
+  position: absolute;
+  z-index: 10;
+  /* Leaves room for the pointer, whose tip sits about 8px from the badge. */
+  left: calc(100% + 24px);
+  top: 50%;
+  background: var(--color-surface);
+  border-radius: 14px;
+  /* Grows out of the pointer's tip, so it pops out of the badge. */
+  transform-origin: -16px 50%;
+  opacity: 0;
+  transform: translateY(-50%) scale(0.85);
+  transition: transform 0.18s ease, opacity 0.18s ease;
+  /* Same outline-style shadow as the Calendar tab's color picker; drop-shadow
+     so the pointer shares the panel's outline. */
+  filter: drop-shadow(0 0 0.75px var(--color-popover-outline)) drop-shadow(0 0 2px var(--color-popover-outline));
+}
+
+.gpa-grade-dropdown:empty {
+  display: none;
+}
+
+.gpa-grade-dropdown--visible {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+}
+
+/* Points at the row's badge: a square turned 45° and half-sunk into the left
+   edge, with its tip rounded. Behind the grid so it never covers an option. */
+.gpa-grade-dropdown::after {
+  content: "";
+  position: absolute;
+  top: calc(50% - 11px);
+  left: -11px;
+  z-index: -1;
+  width: 22px;
+  height: 22px;
+  background: inherit;
+  border-bottom-left-radius: 4px;
+  transform: rotate(45deg);
+}
+
+/* Tall enough for two and a half rows, so the cut-off C row shows there's more
+   to scroll to. */
+.gpa-grade-grid {
+  --option-size: 36px;
+  --option-gap: 10px;
+  --grid-pad: 14px;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(3, var(--option-size));
+  gap: var(--option-gap);
+  max-height: calc(var(--grid-pad) + 2.5 * var(--option-size) + 2 * var(--option-gap));
+  margin: 0;
+  padding: var(--grid-pad);
+  list-style: none;
+  overflow-y: auto;
+  scrollbar-width: none;
+  border-radius: inherit;
+}
+
+.gpa-grade-grid::-webkit-scrollbar {
+  display: none;
+}
+
+.gpa-grade-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--option-size);
+  height: var(--option-size);
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 50%;
+  line-height: 0;
+}
+
+.gpa-grade-option img {
+  width: var(--option-size);
+  height: var(--option-size);
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.12s ease;
+}
+
+.gpa-grade-option:hover img {
+  transform: scale(1.12);
+}
+
+/* Same ring as the color picker's selected swatch, in the grade's own color. */
+.gpa-grade-option--selected img {
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--grade-color);
+}
+

@@ -1,0 +1,212 @@
+.settings-card {
+  /* flex: 0 0 500px, not max-width: a flex item's default shrink: 1 would
+     narrow it when the row lacks room. */
+  flex: 0 0 500px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--color-surface);
+  border-radius: calc(20px * var(--squircle-scale));
+  corner-shape: squircle;
+  padding: 32px;
+  box-shadow: var(--shadow-card);
+}
+
+.settings-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: var(--fw-class-name);
+  color: var(--color-text-primary);
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.settings-label {
+  font-size: 17px;
+  color: var(--color-text-primary);
+}
+
+.settings-divider {
+  height: 1.5px;
+  background: var(--color-gray-lighter);
+}
+
+.settings-danger-row {
+  display: flex;
+  gap: 12px;
+}
+
+.settings-danger-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-gray-lighter);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-danger-btn:hover {
+  background: linear-gradient(var(--color-hover-overlay), var(--color-hover-overlay)), var(--color-gray-lighter);
+}
+
+/* flex-start so the second box doesn't stretch to match the first's height. */
+.settings-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.login-keys-card {
+  flex: 0 0 360px;
+}
+
+.login-keys-card[hidden] {
+  display: none;
+}
+
+.settings-encryption-hint {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-gray-dark);
+}
+
+.settings-encryption-code-row {
+  display: flex;
+  gap: 12px;
+}
+
+.settings-encryption-code {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 14px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  color: var(--color-text-primary);
+  background: var(--color-gray-lighter);
+  border: none;
+  /* Fully round rather than a fixed radius; padding is left as is since the key
+     is long enough that extra side padding would clip it. */
+  border-radius: 999px;
+  padding: 10px 14px;
+}
+
+.settings-encryption-code:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.settings-copy-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-gray-lighter);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.settings-copy-btn:hover {
+  background: linear-gradient(var(--color-hover-overlay), var(--color-hover-overlay)), var(--color-gray-lighter);
+}
+
+.settings-copy-icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* A QR code needs real light-on-dark contrast, so this stays white in both
+   themes. */
+.settings-encryption-qr:empty {
+  display: none;
+}
+
+/* As wide as the card, the code square inside it. */
+.settings-encryption-qr {
+  align-self: stretch;
+  background: #ffffff;
+  padding: 12px;
+  border-radius: 12px;
+}
+
+.settings-encryption-qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+}
+
+/* Layered on .settings-card's own box styling instead of wrapping it in a
+   redundant second box; the cards' flex: 0 0 <width> sizes them inside the
+   overlay. */
+.settings-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.settings-modal-overlay[hidden] {
+  display: none;
+}
+
+.settings-modal-overlay--visible {
+  opacity: 1;
+}
+
+.settings-modal-card {
+  position: relative;
+  max-height: 75vh;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  opacity: 0;
+  transform: translateY(100vh);
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.settings-modal-card::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-modal-card--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.settings-modal-close-btn {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  color: var(--color-gray-dark);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.settings-modal-close-btn:hover {
+  color: var(--color-text-primary);
+}

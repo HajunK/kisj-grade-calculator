@@ -69,7 +69,7 @@ function colorBehindPill(el) {
 // different devices, per different viewport heights) — so what's behind
 // it isn't one fixed color to hardcode against. Sampled live instead, and
 // the border only turns on once that color is genuinely the same as the
-// pill's own (see .class-countdown-pill--needs-outline in style.css).
+// pill's own (see .class-countdown-pill--needs-outline in floating.css).
 function updatePillContrastOutline() {
   if (!classCountdownEl || classCountdownEl.hidden) return;
   const behind = colorBehindPill(classCountdownEl);

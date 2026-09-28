@@ -62,6 +62,7 @@ function normalizeCloudData(cloud, key) {
     periodDivisions: cloud.periodDivisions || [],
     hiddenCourses: cloud.hiddenCourses || [],
     addedAssessments: cloud.addedAssessments || [],
+    completedTasks: cloud.completedTasks || [],
     domainSnapshot,
     gpaClasses,
     domainScores,

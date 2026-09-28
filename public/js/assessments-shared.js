@@ -322,14 +322,14 @@ function nearestUpcomingAnyAssessment(courseName, periodIndex) {
   const today = todayISODate();
   const schoolWide = assessmentsForCourse(courseName, periodIndex).find((entry) => entry.date >= today) || null;
 
-  // Assessments this student added themselves (see "Add Missing
-  // Assessment" on the Calendar tab) count too. Not on every page that
-  // loads this file, hence the typeof guard. On a tie the school-wide
+  // Assessments this student added themselves (see the Calendar tab's "Add
+  // to calendar") count too, but not their assignments. Not on every page
+  // that loads this file, hence the typeof guard. On a tie the school-wide
   // entry wins — it's the real one.
   const own =
     typeof loadAddedAssessments === "function"
       ? loadAddedAssessments()
-          .filter((entry) => entry.courseName === courseName && entry.date >= today)
+          .filter((entry) => entry.type !== "Assignment" && entry.courseName === courseName && entry.date >= today)
           .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))[0] || null
       : null;
 
