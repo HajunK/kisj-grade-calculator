@@ -825,11 +825,21 @@ function restoreCardScores(card, name) {
   if (formativesBox && summativesBox) {
     const list1 = formativesBox.querySelector(".score-list");
     const list2 = summativesBox.querySelector(".score-list");
+    // Enough rows for the last filled score plus one empty row, as when
+    // shrinking (see shrinkScoreListsIfTrailingRowsEmpty), rather than one per
+    // saved entry: saved lists can end in a long run of empty entries (from
+    // when the blurred copies' rows were counted too), which would otherwise
+    // come back as rows on every load.
+    const lastFilled = (values) => {
+      let last = -1;
+      (values || []).forEach((value, index) => {
+        if (value !== null && value !== undefined && value !== "") last = index;
+      });
+      return last;
+    };
     const needed = Math.max(
-      list1.querySelectorAll(SCORE_INPUT).length,
-      list2.querySelectorAll(SCORE_INPUT).length,
-      (saved.formative || []).length,
-      (saved.summative || []).length
+      EMPTY_SCORE_ROWS,
+      Math.max(lastFilled(saved.formative), lastFilled(saved.summative)) + 2
     );
     while (list1.querySelectorAll(SCORE_INPUT).length < needed) list1.appendChild(createScoreRow());
     while (list2.querySelectorAll(SCORE_INPUT).length < needed) list2.appendChild(createScoreRow());

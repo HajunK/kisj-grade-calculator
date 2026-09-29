@@ -119,18 +119,34 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  padding: 10px;
+  padding: 11px;
   font: inherit;
   font-size: 15px;
-  color: var(--color-gray-dark);
-  background: transparent;
-  border: 1px solid var(--color-gray-light);
+  /* The near-black the tabs use, so it stands out on the gray fill. */
+  color: var(--color-tab-accent);
+  /* Filled with the page's own background color rather than outlined; the
+     padding is 1px deeper to make up for the outline it no longer has. */
+  background: var(--color-background);
+  border: none;
   border-radius: 999px;
   cursor: pointer;
 }
 
+/* In dark mode the page's background is darker than the card, so a fill in
+   it reads as a hole; the card's lighter gray reads as a raised button. The
+   text is a near-white gray (the Show on Calendar filters' text color), not
+   the tabs' color, which is pure white here and too loud. */
+:root[data-theme="dark"] .gpa-paste-btn {
+  color: var(--color-filter-text);
+  background: var(--color-gray-lighter);
+}
+
+:root[data-theme="dark"] .gpa-paste-btn:hover:not(:disabled) {
+  background: linear-gradient(var(--color-hover-overlay), var(--color-hover-overlay)), var(--color-gray-lighter);
+}
+
 .gpa-paste-btn:hover:not(:disabled) {
-  background: var(--color-background);
+  background: linear-gradient(var(--color-hover-overlay), var(--color-hover-overlay)), var(--color-background);
 }
 
 .gpa-paste-btn:disabled {

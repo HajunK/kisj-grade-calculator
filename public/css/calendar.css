@@ -147,16 +147,18 @@
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: var(--color-accent);
-  color: #ffffff;
+  /* Near-black in light mode, white in dark (the tabs' own accent), with the
+     card's color for the number. */
+  background: var(--color-tab-accent);
+  color: var(--color-surface);
   font-weight: 700;
 }
 
-/* Inverse of the selected day's colors, otherwise it's blue-on-blue on the
-   solid background. */
+/* Inverse of today's colors, so it stands apart on the selected day's solid
+   blue. */
 .assessment-calendar-day--selected .assessment-calendar-day-number--today {
   background: var(--color-surface);
-  color: var(--color-accent);
+  color: var(--color-tab-accent);
 }
 
 .assessment-calendar-day--selected {
@@ -350,8 +352,10 @@
   min-width: 0;
   padding: 0;
   border-radius: 50%;
-  background: var(--color-accent);
-  color: #ffffff;
+  /* Near-black in light mode, white in dark (the tabs' own accent), with the
+     card's color for the number. */
+  background: var(--color-tab-accent);
+  color: var(--color-surface);
   font-weight: 700;
 }
 

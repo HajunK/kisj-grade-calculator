@@ -568,16 +568,18 @@
   background: var(--color-gray-lighter);
 }
 
+/* Near-black in light mode, white in dark (the tabs' own accent), with the
+   card's color for the number. */
 .score-date-day--today {
-  background: var(--color-accent);
-  color: #ffffff;
+  background: var(--color-tab-accent);
+  color: var(--color-surface);
   font-weight: 700;
 }
 
-/* :hover on .score-date-day outranks --today; dark text keeps today's white
-   text from washing out on the lighter hover circle. */
+/* Today keeps its colors on hover, over the plain days' hover circle. */
 .score-date-day--today:hover {
-  color: var(--color-text-primary);
+  background: var(--color-tab-accent);
+  color: var(--color-surface);
 }
 
 .score-date-day--selected {
@@ -585,11 +587,11 @@
   color: var(--color-on-accent);
 }
 
-/* Inverted like .assessment-calendar-day--selected, otherwise it falls back to
-   plain --selected and loses its blue. */
+/* Inverse of today's colors, so it stands apart on the selected day's solid
+   blue. */
 .score-date-day--today.score-date-day--selected {
   background: var(--color-surface);
-  color: var(--color-accent);
+  color: var(--color-tab-accent);
 }
 
 /* Light mode offsets this shadow 2px down; against the near-black page that

@@ -385,12 +385,15 @@ function buildAssessmentPill(entry, resolvedNames, onContextMenu, courseColors) 
   // A plain assignment, not classList.add — must come before every
   // classList.add call below, or it wipes them out.
   pill.className = `assessment-chip assessment-chip--${kind}`;
-  attachHoverTooltip(
-    pill,
-    entry.type === "Testing Block"
-      ? "Testing Block"
-      : { summative: "Summative", reassessment: "Reassessment", formative: "Formative", assignment: "Assignment" }[category]
-  );
+  // Not for a reassessment: its name already says so (see isCustomType below).
+  if (category !== "reassessment") {
+    attachHoverTooltip(
+      pill,
+      entry.type === "Testing Block"
+        ? "Testing Block"
+        : { summative: "Summative", formative: "Formative", assignment: "Assignment" }[category]
+    );
+  }
   // Matches this pill up with itself across rebuilds (see animatePillChanges).
   pill.dataset.entryId = entry.id;
 
