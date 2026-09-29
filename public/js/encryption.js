@@ -226,19 +226,9 @@ function promptForDecryptionCode(uid, cloud) {
     document.body.appendChild(overlay);
 
     const dialog = overlay.querySelector(".decryption-prompt");
-    const animate = window.animationsEnabled();
-    if (!animate) {
-      dialog.classList.add("decryption-prompt--instant");
-      overlay.classList.add("decryption-prompt-overlay--instant");
-    }
     void dialog.offsetWidth; // force reflow so the entrance transition below actually plays
     dialog.classList.add("decryption-prompt--visible");
     overlay.classList.add("decryption-prompt-overlay--visible");
-    if (!animate) {
-      void dialog.offsetWidth; // commit the instant state before re-enabling the transition
-      dialog.classList.remove("decryption-prompt--instant");
-      overlay.classList.remove("decryption-prompt-overlay--instant");
-    }
 
     const cameraBox = overlay.querySelector(".decryption-prompt-camera");
     const video = overlay.querySelector(".decryption-prompt-video");

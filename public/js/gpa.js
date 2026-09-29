@@ -26,10 +26,25 @@ function loadGpaClasses() {
   return appData.gpaClasses;
 }
 
+const GPA_DROPDOWN_ANIMATION_MS = 180;
+
+// Shrinks back into the badge before emptying, the reverse of
+// openGpaDropdown. The pending empty is cancelled if the dropdown reopens
+// mid-close, so it can't wipe out the new options.
 function closeAllGpaDropdowns() {
-  document.querySelectorAll(".gpa-grade-dropdown").forEach((dropdown) => {
-    dropdown.innerHTML = "";
+  document.querySelectorAll(".gpa-grade-dropdown--visible").forEach((dropdown) => {
+    dropdown.classList.remove("gpa-grade-dropdown--visible");
+    dropdown._closeTimer = setTimeout(() => {
+      dropdown.innerHTML = "";
+      dropdown._closeTimer = null;
+    }, GPA_DROPDOWN_ANIMATION_MS);
   });
+}
+
+function openGpaDropdown(dropdown) {
+  clearTimeout(dropdown._closeTimer);
+  void dropdown.offsetWidth; // force reflow so the entrance transition below actually plays
+  dropdown.classList.add("gpa-grade-dropdown--visible");
 }
 
 // Builds either a real letter-grade icon or, if this class has no grade
@@ -50,21 +65,50 @@ function createGpaBadgeContent(slug, label) {
 
 function setGpaRowGrade(row, slug, label) {
   row.dataset.slug = slug || "";
+  row.dataset.label = label || "";
   const btn = row.querySelector(".gpa-grade-badge-btn");
   btn.innerHTML = "";
   btn.appendChild(createGpaBadgeContent(slug, label));
 }
 
 const GPA_BADGE_TRANSITION_MS = 180;
+const GPA_BADGE_FLIP_HALF_MS = 130;
+
+// Picking or clearing a grade: the badge turns edge-on, swaps to the new grade
+// (or the empty ring) while it's invisible side-on, then turns back to face
+// front, like a flipped coin.
+function flipGpaBadge(row, slug, label) {
+  const btn = row.querySelector(".gpa-grade-badge-btn");
+  if (!btn.animate) {
+    setGpaRowGrade(row, slug, label);
+    return;
+  }
+  // A second pick mid-flip starts over from wherever the badge is now.
+  if (btn._gpaFlip) btn._gpaFlip.cancel();
+  // Recorded now rather than at the swap, so saving right after the pick
+  // stores the new grade.
+  row.dataset.slug = slug || "";
+  row.dataset.label = label || "";
+  row.classList.add("gpa-class-row--flipping");
+
+  const turnAway = btn.animate(
+    [{ transform: "perspective(240px) rotateY(0deg)" }, { transform: "perspective(240px) rotateY(90deg)" }],
+    { duration: GPA_BADGE_FLIP_HALF_MS, easing: "ease-in" }
+  );
+  btn._gpaFlip = turnAway;
+  turnAway.onfinish = () => {
+    setGpaRowGrade(row, slug, label);
+    btn._gpaFlip = btn.animate(
+      [{ transform: "perspective(240px) rotateY(-90deg)" }, { transform: "perspective(240px) rotateY(0deg)" }],
+      { duration: GPA_BADGE_FLIP_HALF_MS, easing: "ease-out" }
+    );
+    btn._gpaFlip.onfinish = () => row.classList.remove("gpa-class-row--flipping");
+  };
+}
 
 // Scroll-driven grade change: crossfades the single badge icon into the
 // next tier, sliding up or down depending on direction.
 function animateGpaBadgeChange(row, slug, label, direction) {
-  if (!window.animationsEnabled()) {
-    setGpaRowGrade(row, slug, label);
-    return;
-  }
-
   const btn = row.querySelector(".gpa-grade-badge-btn");
 
   // Fast scrolling can call this again before the previous transition's
@@ -80,6 +124,7 @@ function animateGpaBadgeChange(row, slug, label, direction) {
   const newContent = createGpaBadgeContent(slug, label);
 
   row.dataset.slug = slug || "";
+  row.dataset.label = label || "";
 
   // direction: 1 = moved to a lower tier — the old icon exits upward
   // while the new one enters from below. -1 is the mirror image.
@@ -124,19 +169,19 @@ function animateGpaBadgeChange(row, slug, label, direction) {
   }, GPA_BADGE_TRANSITION_MS + 30);
 }
 
-// The grade picker only shows A+ through B at a time; a "⋯" button toggles
-// to B- through F (and back), rather than listing all 12 tiers at once.
-const GPA_DROPDOWN_UPPER_TIERS = GRADE_SCALE.slice(0, 5); // A+, A, A-, B+, B
-const GPA_DROPDOWN_LOWER_TIERS = GRADE_SCALE.slice(5); // B-, C+, C, C-, D+, D, F
-
-function renderGpaDropdownOptions(dropdown, showLowerTiers, onSelect, onToggle) {
+function renderGpaDropdownOptions(dropdown, selectedSlug, onSelect) {
   dropdown.innerHTML = "";
+  // The grid scrolls inside the dropdown rather than being the dropdown, so it
+  // doesn't clip the pointer that sticks out of the dropdown's edge.
+  const grid = document.createElement("ul");
+  grid.className = "gpa-grade-grid";
 
-  (showLowerTiers ? GPA_DROPDOWN_LOWER_TIERS : GPA_DROPDOWN_UPPER_TIERS).forEach((tier) => {
+  GRADE_SCALE.forEach((tier) => {
     const optionItem = document.createElement("li");
     const optionBtn = document.createElement("button");
     optionBtn.type = "button";
     optionBtn.className = "gpa-grade-option";
+    if (tier.slug === selectedSlug) optionBtn.classList.add("gpa-grade-option--selected");
 
     const img = document.createElement("img");
     img.src = gradeIconPath(tier.slug);
@@ -150,21 +195,17 @@ function renderGpaDropdownOptions(dropdown, showLowerTiers, onSelect, onToggle) 
     });
 
     optionItem.appendChild(optionBtn);
-    dropdown.appendChild(optionItem);
+    grid.appendChild(optionItem);
   });
 
-  const moreItem = document.createElement("li");
-  const moreBtn = document.createElement("button");
-  moreBtn.type = "button";
-  moreBtn.className = "gpa-grade-more";
-  moreBtn.textContent = "⋯";
-  moreBtn.setAttribute("aria-label", showLowerTiers ? "Show A+ through B" : "Show B- through F");
-  moreBtn.addEventListener("click", (event) => {
-    event.stopPropagation();
-    onToggle();
-  });
-  moreItem.appendChild(moreBtn);
-  dropdown.appendChild(moreItem);
+  dropdown.appendChild(grid);
+
+  // A grade below the fold would otherwise open with its ring out of sight.
+  const selected = grid.querySelector(".gpa-grade-option--selected");
+  if (selected) {
+    const item = selected.parentElement;
+    if (item.offsetTop + item.offsetHeight > grid.clientHeight) grid.scrollTop = item.offsetTop - grid.clientHeight / 2 + item.offsetHeight / 2;
+  }
 }
 
 function persistGpaClasses() {
@@ -173,7 +214,7 @@ function persistGpaClasses() {
   const classes = Array.from(list.querySelectorAll(".gpa-class-row")).map((row) => ({
     name: row.querySelector(".gpa-class-name").textContent,
     slug: row.dataset.slug || null,
-    label: row.querySelector(".gpa-grade-badge-btn img")?.alt || null,
+    label: row.dataset.label || null,
   }));
   appData.gpaClasses = classes;
   pushDataToCloud();
@@ -258,7 +299,7 @@ function renderGpaClassList(classes) {
     badgeBtn.type = "button";
     badgeBtn.className = "gpa-grade-badge-btn";
 
-    const dropdown = document.createElement("ul");
+    const dropdown = document.createElement("div");
     dropdown.className = "gpa-grade-dropdown";
 
     // Only shown (via CSS, hover + a non-empty data-slug on the row) while
@@ -266,11 +307,11 @@ function renderGpaClassList(classes) {
     const clearBtn = document.createElement("button");
     clearBtn.type = "button";
     clearBtn.className = "gpa-clear-btn";
-    clearBtn.textContent = "×";
+    clearBtn.innerHTML = '<span class="close-icon" aria-hidden="true"></span>';
     clearBtn.setAttribute("aria-label", "Remove grade");
     clearBtn.addEventListener("click", (event) => {
       event.stopPropagation();
-      setGpaRowGrade(row, null, null);
+      flipGpaBadge(row, null, null);
       closeAllGpaDropdowns();
       persistGpaClasses();
       recalculateGpa();
@@ -289,23 +330,18 @@ function renderGpaClassList(classes) {
 
     badgeBtn.addEventListener("click", (event) => {
       event.stopPropagation();
-      const wasOpen = dropdown.children.length > 0;
+      const wasOpen = dropdown.classList.contains("gpa-grade-dropdown--visible");
       closeAllGpaDropdowns();
       if (wasOpen) return;
 
-      let showLowerTiers = false;
-      const onSelect = (tier) => {
-        setGpaRowGrade(row, tier.slug, tier.label);
+      renderGpaDropdownOptions(dropdown, row.dataset.slug, (tier) => {
+        flipGpaBadge(row, tier.slug, tier.label);
         closeAllGpaDropdowns();
         persistGpaClasses();
         recalculateGpa();
         list.dispatchEvent(new CustomEvent("gpa-grade-changed", { bubbles: true }));
-      };
-      const onToggle = () => {
-        showLowerTiers = !showLowerTiers;
-        renderGpaDropdownOptions(dropdown, showLowerTiers, onSelect, onToggle);
-      };
-      renderGpaDropdownOptions(dropdown, showLowerTiers, onSelect, onToggle);
+      });
+      openGpaDropdown(dropdown);
     });
 
     // Scroll on the badge to step through tiers one at a time. Trackpads
@@ -341,7 +377,7 @@ function renderGpaClassList(classes) {
         animateGpaBadgeChange(row, tier.slug, tier.label, direction);
         persistGpaClasses();
         recalculateGpa();
-        list.dispatchEvent(new CustomEvent("gpa-grade-changed", { bubbles: true }));
+        list.dispatchEvent(new CustomEvent("gpa-grade-changed", { bubbles: true, detail: { fromScroll: true } }));
       },
       { passive: false }
     );
@@ -379,11 +415,6 @@ function buildGpaClasses() {
 // Collapses the "Click or scroll..." instructions line down to nothing
 // before actually hiding it.
 function hideGpaClassesDescription(el) {
-  if (!window.animationsEnabled()) {
-    el.hidden = true;
-    return;
-  }
-
   const startHeight = el.getBoundingClientRect().height;
   el.style.height = `${startHeight}px`;
   void el.offsetHeight; // force reflow so the height above takes effect before transitioning
@@ -406,12 +437,12 @@ function initGpaPage() {
   document.addEventListener("click", closeAllGpaDropdowns);
 
   // "Click or scroll on the circle to set the letter grade" — hidden for
-  // good the first time a grade actually gets set (not cleared). In-memory
-  // only, so it's back next page load.
+  // good the first time a grade gets picked from the dropdown. Clearing or
+  // scrolling doesn't count. In-memory only, so it's back next page load.
   const gpaDescription = document.querySelector(".gpa-classes-description");
   if (gpaDescription) {
     const onGpaGradeChanged = (event) => {
-      if (event.detail && event.detail.cleared) return;
+      if (event.detail && (event.detail.cleared || event.detail.fromScroll)) return;
       document.removeEventListener("gpa-grade-changed", onGpaGradeChanged);
       hideGpaClassesDescription(gpaDescription);
     };
@@ -445,13 +476,32 @@ function initGpaPage() {
     };
     document.addEventListener("gpa-grade-changed", resetPasteLabel);
 
+    const PASTE_FLIP_STAGGER_MS = 70;
+
+    // Rebuilt showing each class's old grade, then flipped to the pasted one
+    // row by row, top to bottom. The grades themselves (and the GPA) switch
+    // over at once; only the badges trail behind.
     const applyDomainSnapshotPaste = (domainSnapshot) => {
+      const previous = new Map(
+        Array.from(document.querySelectorAll(".gpa-class-row")).map((row) => [
+          row.querySelector(".gpa-class-name").textContent,
+          { slug: row.dataset.slug || null, label: row.dataset.label || null },
+        ])
+      );
       const refreshed = currentClassNames().map((name) => {
         const fromDomain = domainSnapshot.find((c) => c.name === name);
         return fromDomain || { name, slug: null, label: null };
       });
-      renderGpaClassList(refreshed);
+      renderGpaClassList(refreshed.map(({ name }) => ({ name, ...(previous.get(name) || { slug: null, label: null }) })));
+
+      document.querySelectorAll(".gpa-class-row").forEach((row, index) => {
+        const { slug, label } = refreshed[index];
+        row.dataset.slug = slug || "";
+        row.dataset.label = label || "";
+        setTimeout(() => flipGpaBadge(row, slug, label), index * PASTE_FLIP_STAGGER_MS);
+      });
       persistGpaClasses();
+      recalculateGpa();
     };
 
     // Whichever takes longer wins, so the spinner shows for at least

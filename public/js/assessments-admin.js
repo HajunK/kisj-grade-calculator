@@ -266,19 +266,9 @@ function buildScheduleModal() {
 function openScheduleModal() {
   scheduleModalOverlay = buildScheduleModal();
   const dialog = scheduleModalOverlay.querySelector(".admin-schedule-dialog");
-  const animate = window.animationsEnabled();
-  if (!animate) {
-    dialog.classList.add("admin-schedule-dialog--instant");
-    scheduleModalOverlay.classList.add("admin-schedule-overlay--instant");
-  }
   void dialog.offsetWidth; // force reflow so the entrance transition below actually plays
   dialog.classList.add("admin-schedule-dialog--visible");
   scheduleModalOverlay.classList.add("admin-schedule-overlay--visible");
-  if (!animate) {
-    void dialog.offsetWidth; // commit the instant state before re-enabling the transition
-    dialog.classList.remove("admin-schedule-dialog--instant");
-    scheduleModalOverlay.classList.remove("admin-schedule-overlay--instant");
-  }
 }
 
 function closeScheduleModal() {
@@ -286,10 +276,6 @@ function closeScheduleModal() {
   const closingOverlay = scheduleModalOverlay;
   const dialog = closingOverlay.querySelector(".admin-schedule-dialog");
   scheduleModalOverlay = null;
-  if (!window.animationsEnabled()) {
-    closingOverlay.remove();
-    return;
-  }
   // Reverses the entrance transition above.
   dialog.classList.remove("admin-schedule-dialog--visible");
   closingOverlay.classList.remove("admin-schedule-overlay--visible");
@@ -554,7 +540,7 @@ function setupTypeToggle() {
       if (btn.classList.contains("segmented-option--active")) return;
       adminSelectedType = btn.dataset.value;
       options.forEach((other) => other.classList.toggle("segmented-option--active", other === btn));
-      positionThumb(btn, window.animationsEnabled());
+      positionThumb(btn, true);
 
       otherInput.hidden = adminSelectedType !== "Other";
       if (adminSelectedType === "Other") otherInput.focus();
