@@ -404,20 +404,16 @@
 
 .admin-schedule-close-btn {
   position: absolute;
-  top: 24px;
-  right: 24px;
-  width: 28px;
-  height: 28px;
+  top: 22px;
+  right: 22px;
+  width: 32px;
+  height: 32px;
   border: none;
   background: none;
-  color: var(--color-gray-dark);
-  font-size: 22px;
+  color: var(--color-modal-close);
+  font-size: 26px;
   line-height: 1;
   cursor: pointer;
-}
-
-.admin-schedule-close-btn:hover {
-  color: var(--color-text-primary);
 }
 
 .admin-schedule-title {
