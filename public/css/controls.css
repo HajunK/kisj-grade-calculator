@@ -184,8 +184,9 @@
   color: oklch(from var(--chip-color, var(--color-accent)) clamp(0, (0.78 - l) * 1000, 1) 0 0);
 }
 
-/* icons/close.svg, used as a mask so it takes its button's text color (dark
-   gray, darkening on hover) in either theme instead of the file's own black.
+/* icons/close.svg, used as a mask so it takes its button's text color (the
+   modals' steady dark gray, say) in either theme instead of the file's own
+   black.
    Sized in em, so each button's old font-size for the "×" still sets how big
    its X is. */
 .close-icon {

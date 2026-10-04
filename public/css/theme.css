@@ -9,6 +9,8 @@
   --color-gray-dark: #828282;
   --color-gray-light: #c3c9d6;
   --color-gray-lighter: #eeeeee;
+  /* The modals' corner X: one steady dark gray, no hover change. */
+  --color-modal-close: #3a3a3a;
 
   /* The light theme's dark-blue; dark mode sets its own (below). */
   --color-accent: var(--color-dark-blue);
@@ -83,6 +85,7 @@
   --color-gray-dark: #bababa;
   --color-gray-light: #808080;
   --color-gray-lighter: #464646;
+  --color-modal-close: #bababa;
 
   /* Its own blue here, a touch brighter than dark mode's --color-dark-blue,
      rather than following it as the light theme's does. */
