@@ -559,9 +559,20 @@
   justify-content: center;
 }
 
+/* Days from the previous or next month, filling out the first and last
+   weeks. */
 .score-date-day--outside {
-  visibility: hidden;
+  color: var(--color-gray-dark);
+}
+
+/* Outside the school year, so they can't be picked. */
+.score-date-day--disabled {
+  opacity: 0.5;
   cursor: default;
+}
+
+.score-date-day--disabled:hover {
+  background: none;
 }
 
 .score-date-day:hover {
