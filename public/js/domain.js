@@ -1465,35 +1465,49 @@ function renderScoreDateCalendar(panel, displayedMonth, bounds, dateLabel, direc
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const today = new Date();
 
-  for (let i = 0; i < firstWeekday; i++) {
-    const filler = document.createElement("span");
-    filler.className = "score-date-day score-date-day--outside";
-    grid.appendChild(filler);
-  }
+  // Last day the picker allows: the end of bounds.end's month.
+  const lastAllowed = new Date(bounds.end.getFullYear(), bounds.end.getMonth() + 1, 0);
 
-  for (let day = 1; day <= daysInMonth; day++) {
-    const dayBtn = document.createElement("button");
-    dayBtn.type = "button";
+  function addDay(date, outside) {
+    const inRange = date >= bounds.start && date <= lastAllowed;
+    const dayBtn = document.createElement(inRange ? "button" : "span");
+    if (inRange) dayBtn.type = "button";
     dayBtn.className = "score-date-day";
-    dayBtn.textContent = String(day);
-    if (year === today.getFullYear() && month === today.getMonth() && day === today.getDate()) {
+    dayBtn.textContent = String(date.getDate());
+    // Days of the previous and next months fill out the first and last
+    // weeks, grayed. Picking one still sets that date, unless it falls
+    // outside the school year.
+    if (outside) dayBtn.classList.add("score-date-day--outside");
+    if (!inRange) dayBtn.classList.add("score-date-day--disabled");
+    if (
+      !outside &&
+      date.getFullYear() === today.getFullYear() &&
+      date.getMonth() === today.getMonth() &&
+      date.getDate() === today.getDate()
+    ) {
       dayBtn.classList.add("score-date-day--today");
     }
-    dayBtn.addEventListener("click", (event) => {
-      event.stopPropagation();
-      grid
-        .querySelectorAll(".score-date-day--selected")
-        .forEach((el) => el.classList.remove("score-date-day--selected"));
-      dayBtn.classList.add("score-date-day--selected");
-      const picked = new Date(year, month, day);
-      dateLabel.dataset.isoDate = toISODate(picked);
-      dateLabel.textContent = formatAssessmentDate(picked);
-      const card = dateLabel.closest(".class-card");
-      if (card) persistCardScores(card);
-      closeScoreDateCalendar();
-    });
+    if (inRange) {
+      dayBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        grid
+          .querySelectorAll(".score-date-day--selected")
+          .forEach((el) => el.classList.remove("score-date-day--selected"));
+        dayBtn.classList.add("score-date-day--selected");
+        dateLabel.dataset.isoDate = toISODate(date);
+        dateLabel.textContent = formatAssessmentDate(date);
+        const card = dateLabel.closest(".class-card");
+        if (card) persistCardScores(card);
+        closeScoreDateCalendar();
+      });
+    }
     grid.appendChild(dayBtn);
   }
+
+  for (let i = firstWeekday; i > 0; i--) addDay(new Date(year, month, 1 - i), true);
+  for (let day = 1; day <= daysInMonth; day++) addDay(new Date(year, month, day), false);
+  const trailing = (7 - ((firstWeekday + daysInMonth) % 7)) % 7;
+  for (let day = 1; day <= trailing; day++) addDay(new Date(year, month + 1, day), true);
 
   // Only the days move: they sit in a clipped window of their own, so the
   // header and weekday letters above stay put.
