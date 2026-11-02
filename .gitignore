@@ -3,3 +3,12 @@
 firebase-debug.log
 firestore-debug.log
 node_modules/
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+.env
+.env.*
+!.env.example
+*service-account*.json
+backend/var/

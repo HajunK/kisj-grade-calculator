@@ -1,0 +1,13 @@
+[Unit]
+Description=KIS Jeju HS cafeteria menu OCR and Firestore sync
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/etc/kisj-menu/firebase.json
+
+[Service]
+Type=oneshot
+TimeoutStartSec=30min
+ExecStart=/usr/bin/podman run --rm --name kisj-menu --replace --network=host --read-only --cap-drop=all --security-opt=no-new-privileges --memory=1536m --memory-swap=1536m --cpus=1 --pids-limit=128 --tmpfs=/tmp:rw,noexec,nosuid,size=128m --volume=/etc/kisj-menu/firebase.json:/run/secrets/firebase.json:ro --volume=/var/lib/kisj-menu:/app/var:rw --env=GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/firebase.json --env=FIREBASE_PROJECT_ID=kisj-grade-calculator localhost/kisj-menu:current --output=/app/var/menus --limit=3
+ExecStopPost=-/usr/bin/podman rm --force kisj-menu
+Nice=10
+UMask=0077

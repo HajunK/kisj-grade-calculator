@@ -1,0 +1,11 @@
+[Unit]
+Description=Check HS menu revisions every hour
+
+[Timer]
+OnCalendar=*-*-* *:17:00 Asia/Seoul
+RandomizedDelaySec=120
+Persistent=true
+Unit=kisj-menu.service
+
+[Install]
+WantedBy=timers.target
