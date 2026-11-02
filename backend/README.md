@@ -3,6 +3,7 @@
 This is a scheduled job, with no HTTP server or inbound port. The existing
 frontend uses Firebase Hosting, Authentication and Firestore. No custom backend
 was found in the repository or live Cloud Functions inventory; Cloud Run was disabled.
+The current host, deployed checks and SSH access are recorded in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Pipeline
 
