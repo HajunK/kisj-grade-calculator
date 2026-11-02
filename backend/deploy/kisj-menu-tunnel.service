@@ -1,0 +1,19 @@
+[Unit]
+Description=HTTPS tunnel for KISJ menu API
+Wants=network-online.target
+After=network-online.target kisj-menu-api.service
+ConditionPathExists=/etc/kisj-menu/tunnel/config.yml
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/kisj-menu/tunnel/image.env
+ExecStart=/usr/bin/podman run --rm --name kisj-menu-tunnel --replace --network=host --read-only --cap-drop=all --security-opt=no-new-privileges --memory=128m --pids-limit=64 --user=10001:10001 --volume=/etc/kisj-menu/tunnel/config.yml:/etc/cloudflared/config.yml:ro --volume=/etc/kisj-menu/tunnel/credentials.json:/etc/cloudflared/credentials.json:ro ${CLOUDFLARED_IMAGE} tunnel --config /etc/cloudflared/config.yml run
+ExecStop=/usr/bin/podman stop --time 15 kisj-menu-tunnel
+ExecStopPost=-/usr/bin/podman rm --force kisj-menu-tunnel
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=25
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

@@ -22,6 +22,14 @@ MENU_RULES = """
     }
 """
 
+QUEUE_RULES = """
+    // Student identities and ticket state are private; only the API Admin SDK
+    // may access them. Public aggregate counts are returned by the API.
+    match /cafeteriaQueueSessions/{document=**} {
+      allow read, write: if false;
+    }
+"""
+
 
 def merge_rules(content):
     if "match /cafeteriaMenus/" in content or "match /cafeteriaMenuSources/" in content:
@@ -50,10 +58,34 @@ def tests():
     return cases
 
 
+def merge_queue_rules(content):
+    if "match /cafeteriaQueueSessions/" in content:
+        if QUEUE_RULES.strip() in content:
+            return content
+        raise ValueError("Live queue rules differ; review before replacing")
+    anchor = "match /databases/{database}/documents {"
+    if content.count(anchor) != 1:
+        raise ValueError("Could not locate Firestore document rules")
+    return content.replace(anchor, anchor + "\n" + QUEUE_RULES, 1)
+
+
+def queue_tests():
+    return [{
+        "expectation": "DENY",
+        "request": {"path": f"/databases/(default)/documents/cafeteriaQueueSessions/{path}",
+                    "method": method, "auth": user, "resource": {"data": {"choices": {}}}},
+        "resource": {"data": {"choices": {}}},
+    } for user in (None, {"uid": "student", "token": {"email": "student@example.test"}},
+                   {"uid": "admin", "token": {"email": "hajunk105@gmail.com"}})
+      for path in ("2026-11-09_lunch", "2026-11-09_lunch/tickets/student")
+      for method in ("get", "list", "create", "update", "delete")]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project", default="kisj-grade-calculator")
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--queues", action="store_true", help="Also install server-only queue rules")
     parser.add_argument("--backup", type=Path, default=Path("/tmp/kisj-menu-rules-backup.json"))
     args = parser.parse_args()
     token = subprocess.check_output(["gcloud", "auth", "print-access-token"], text=True).strip()
@@ -78,13 +110,16 @@ def main():
         raise ValueError("Expected one live firestore.rules file")
     old = files[0]["content"]
     files[0]["content"] = merge_rules(old)
+    if args.queues:
+        files[0]["content"] = merge_queue_rules(files[0]["content"])
     files[0].pop("fingerprint", None)
-    result = api(f"projects/{args.project}:test", {"source": source, "testSuite": {"testCases": tests()}})
+    cases = tests() + (queue_tests() if args.queues else [])
+    result = api(f"projects/{args.project}:test", {"source": source, "testSuite": {"testCases": cases}})
     issues = [issue for issue in result.get("issues", []) if issue.get("severity") == "ERROR"]
     failed = [test for test in result.get("testResults", []) if test.get("state") != "SUCCESS"]
-    if issues or failed or len(result.get("testResults", [])) != len(tests()):
+    if issues or failed or len(result.get("testResults", [])) != len(cases):
         raise RuntimeError(json.dumps({"issues": issues, "failures": failed})[:8000])
-    print(f"Menu rules compiled; {len(tests())} access-control tests passed")
+    print(f"Menu rules compiled; {len(cases)} access-control tests passed")
     if args.apply and files[0]["content"] != old:
         args.backup.write_text(json.dumps({"release": release, "ruleset": ruleset}, indent=2) + "\n")
         created = api(f"projects/{args.project}/rulesets", {"source": source})
