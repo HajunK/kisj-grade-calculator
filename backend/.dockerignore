@@ -1,5 +1,9 @@
 *
 !Dockerfile
 !requirements.txt
+!api-requirements.txt
+!Api.Dockerfile
 !menu_scraper/
 !menu_scraper/*.py
+!menu_api/
+!menu_api/*.py

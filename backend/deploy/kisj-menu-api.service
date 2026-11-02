@@ -1,0 +1,18 @@
+[Unit]
+Description=KISJ authenticated menu choices and virtual queue API
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/etc/kisj-menu/firebase.json
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/podman run --rm --name kisj-menu-api --replace --network=host --read-only --cap-drop=all --security-opt=no-new-privileges --memory=512m --memory-swap=512m --cpus=0.5 --pids-limit=128 --tmpfs=/tmp:rw,noexec,nosuid,size=32m --volume=/etc/kisj-menu/firebase.json:/run/secrets/firebase.json:ro --env=GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/firebase.json --env=FIREBASE_PROJECT_ID=kisj-grade-calculator --env=MENU_SERVICE_SECONDS=20 localhost/kisj-menu-api:current
+ExecStop=/usr/bin/podman stop --time 20 kisj-menu-api
+ExecStopPost=-/usr/bin/podman rm --force kisj-menu-api
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

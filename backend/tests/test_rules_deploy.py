@@ -23,3 +23,11 @@ service cloud.firestore {
 def test_rules_patch_refuses_conflicting_existing_menu_rules():
     with pytest.raises(ValueError, match="different content"):
         rules.merge_rules("match /cafeteriaMenus/{id} { allow write: if true; }")
+
+
+def test_private_queue_rules_are_additive_and_idempotent():
+    original = "service cloud.firestore { match /databases/{database}/documents { } }"
+    patched = rules.merge_queue_rules(original)
+    assert patched.replace("\n" + rules.QUEUE_RULES, "", 1) == original
+    assert rules.merge_queue_rules(patched) == patched
+    assert len(rules.queue_tests()) == 30

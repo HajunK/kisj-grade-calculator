@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KIS Cal</title>
+  <link rel="icon" href="icons/logos/page-icon.png" />
+  <!-- This page is dark unless someone saved "light". A saved "system" can't be
+       told apart from never having chosen, as every saved preference carries
+       the default, so it counts as no choice. preferences.js keeps setting
+       data-theme from the OS, so the observer puts it back before paint. -->
+  <script>
+    (function () {
+      var root = document.documentElement;
+      function savedAppearance() {
+        if (window.getPreferences) return window.getPreferences().appearance;
+        try {
+          var uid = localStorage.getItem("lastKnownUid");
+          var raw = uid ? localStorage.getItem("prefs_" + uid) : null;
+          if (!raw) raw = localStorage.getItem("prefs_anon");
+          var parsed = raw ? JSON.parse(raw) : null;
+          return parsed && parsed.prefs ? parsed.prefs.appearance : null;
+        } catch (error) {
+          return null;
+        }
+      }
+      function pinTheme() {
+        var theme = savedAppearance() === "light" ? "light" : "dark";
+        if (root.dataset.theme !== theme) root.dataset.theme = theme;
+      }
+      pinTheme();
+      new MutationObserver(pinTheme).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+      window.addEventListener("app:preferences-changed", pinTheme);
+    })();
+  </script>
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
+  <link rel="preload" href="fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/nav.css" />
+  <link rel="stylesheet" href="css/controls.css" />
+  <link rel="stylesheet" href="css/floating.css" />
+  <link rel="stylesheet" href="css/theme.css" />
+  <link rel="stylesheet" href="css/menu.css" />
+</head>
+<body>
+  <nav class="tab-bar">
+    <img class="tab-bar-logo tab-bar-logo--light" src="icons/logos/light-logo.png" alt="" />
+    <img class="tab-bar-logo tab-bar-logo--dark" src="icons/logos/dark-logo.png" alt="" />
+    <a class="tab" href="calendar">Calendar</a>
+    <a class="tab" href="domain">Domain</a>
+    <a class="tab" href="gpa">GPA</a>
+    <a class="tab tab--active" href="menu">Menu<span class="tab-underline" aria-hidden="true"></span></a>
+    <a class="tab tab--admin-only" href="assessments">Assessments</a>
+    <a class="tab tab--admin-only" href="posts">Posts</a>
+    <div class="auth-container"></div>
+  </nav>
+  <!-- Same underline slide as the other pages. -->
+  <script>
+    (function () {
+      var KEY = "tabUnderlineFrom";
+      var bar = document.querySelector(".tab--active .tab-underline");
+      document.querySelectorAll(".tab-bar .tab").forEach(function (tab) {
+        tab.addEventListener("click", function (event) {
+          if (!bar || tab.classList.contains("tab--active")) return;
+          if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          var rect = bar.getBoundingClientRect();
+          try {
+            sessionStorage.setItem(KEY, JSON.stringify({ left: rect.left, width: rect.width, at: Date.now() }));
+          } catch (error) {}
+        });
+      });
+      var from = null;
+      try {
+        from = JSON.parse(sessionStorage.getItem(KEY));
+        sessionStorage.removeItem(KEY);
+      } catch (error) {}
+      if (!bar || !from || !bar.animate || Date.now() - from.at > 3000) return;
+      if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      var to = bar.getBoundingClientRect();
+      if (!to.width || !from.width) return;
+      bar.animate(
+        [
+          { transform: "translateX(" + (from.left - to.left) + "px) scaleX(" + from.width / to.width + ")" },
+          { transform: "none" },
+        ],
+        { duration: 300, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" }
+      );
+    })();
+  </script>
+
+  <main class="page-content menu-page">
+    <header class="menu-head">
+      <div class="menu-heading">
+        <h1 class="menu-title" id="menu-title">Menu</h1>
+        <p class="menu-date-label" id="menu-date-label"></p>
+      </div>
+      <div class="menu-controls">
+        <div class="menu-date-nav">
+          <button type="button" class="menu-icon-btn" id="menu-prev-day" aria-label="Previous day">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" /></svg>
+          </button>
+          <input type="date" class="menu-date-input" id="menu-date" aria-label="Menu date" />
+          <button type="button" class="menu-icon-btn" id="menu-next-day" aria-label="Next day">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7.5 4.5 13 10l-5.5 5.5" /></svg>
+          </button>
+          <button type="button" class="menu-today-btn" id="menu-today" hidden>Today</button>
+        </div>
+        <div class="segmented-control menu-seg" id="menu-meal" role="group" aria-label="Meal">
+          <button type="button" class="segmented-option" data-value="breakfast">Breakfast</button>
+          <button type="button" class="segmented-option" data-value="lunch">Lunch</button>
+          <button type="button" class="segmented-option" data-value="dinner">Dinner</button>
+        </div>
+        <div class="segmented-control menu-seg" id="menu-lang" role="group" aria-label="Menu language">
+          <button type="button" class="segmented-option" data-value="en">English</button>
+          <button type="button" class="segmented-option" data-value="ko" lang="ko">한국어</button>
+        </div>
+      </div>
+    </header>
+
+    <div id="menu-notices"></div>
+    <div id="menu-body" aria-busy="true"></div>
+    <div class="menu-sr-only" id="menu-live" role="status" aria-live="polite"></div>
+    <noscript><p class="menu-noscript">This page needs JavaScript to show the menu.</p></noscript>
+  </main>
+
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script defer src="js/firebase-config.js"></script>
+  <script defer src="js/preferences.js"></script>
+  <script defer src="js/auth.js"></script>
+  <script defer src="js/menu.js"></script>
+</body>
+</html>
