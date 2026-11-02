@@ -53,3 +53,14 @@ users/{uid}/classes/{classId}/assignments/{assignmentId}
 
 - npx serve -l 8000: run server on http://localhost:8000
 - firebase deploy: deploy server to Firebase
+
+## HS cafeteria menu scraper
+
+The scheduled Python backend downloads only `[HS]` menu posts from KIS Jeju,
+OCRs their PDF or Korean/English image attachments, and publishes dated JSON to
+the existing Firestore project. Setup, data format, deployment and operating
+commands are in [backend/README.md](backend/README.md).
+
+Use `backend/deploy/publish_rules.py` for menu-rule deployment. It reads and
+preserves the current live rules, which include changes newer than this checkout.
+Do not deploy this checkout's entire rules file over the live project for this feature.
